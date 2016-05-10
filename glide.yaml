@@ -1,0 +1,4 @@
+package: github.com/30x/gozerian
+import:
+- package: github.com/justinas/alice.git
+- package: github.com/gorilla/websocket

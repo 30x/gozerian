@@ -1,0 +1,114 @@
+package go_gateway
+
+import (
+	"log"
+	"net/http"
+	"net"
+	"bufio"
+	"errors"
+	"time"
+	"io"
+	"github.com/30x/gozerian/pipeline"
+)
+
+var _ = log.Print // avoid having to add/remove the log import so much
+
+type targetTransport struct {
+	http.RoundTripper
+	writer     pipeline.ResponseWriter
+	origReq	   *http.Request
+	resHandler pipeline.ResponseHandlerFunc
+}
+
+func (self *targetTransport) RoundTrip(req *http.Request) (res *http.Response, err error) {
+
+	// upgrade to hijacked connection
+	upgrade := self.origReq.Header.Get("Connection") == "Upgrade"
+	if upgrade {
+		return self.upgradedRoundTrip(req)
+	}
+
+	// call target
+	res, err = self.RoundTripper.RoundTrip(req)
+	if err != nil {
+		self.writer.SendError(err)
+		return nil, err
+	}
+
+	// run response handlers
+	self.resHandler(self.writer, self.origReq, res)
+
+	return res, self.writer.Context().Err()
+}
+
+func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Response, err error) {
+
+	req.Header.Set("Connection", self.origReq.Header.Get("Connection"))
+	req.Header.Set("Upgrade", self.origReq.Header.Get("Upgrade"))
+
+	targetConn, err := net.Dial("tcp", req.URL.Host)
+	if err != nil {
+		return nil, err
+	}
+	defer targetConn.Close()
+
+	if err := req.Write(targetConn); err != nil {
+		return nil, err
+	}
+
+	targetReader := bufio.NewReader(targetConn)
+	res, err = http.ReadResponse(targetReader, req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 101 {
+		return nil, errors.New("Upgrade status code (101) required")
+	}
+
+	// Run Response Handlers
+	self.resHandler(self.writer, self.origReq, res)
+
+	//log.Print("hijacking")
+	con, clientRW, err := self.writer.(http.Hijacker).Hijack()
+	if err != nil {
+		return nil, err
+	}
+	defer con.Close()
+
+	res.Write(clientRW)
+	clientRW.Flush()
+
+	done := make(chan error)
+
+	// set timeout timer
+	ctx := self.writer.(pipeline.ContextHolder).Context()
+	timeout := ctx.Value("config").(pipeline.Config).Get("timeout").(time.Duration)
+	timer := time.AfterFunc(timeout, func() { close(done) })
+
+	// todo: pipe data through upgraded stream handlers!
+
+	go copyData(clientRW, targetConn, done, timer, timeout)
+	go copyData(targetConn, clientRW, done, timer, timeout)
+
+	err = <-done
+
+	// todo: add test for timeout
+
+	return nil, err
+}
+
+func copyData(writer io.Writer, reader io.Reader, done chan error, timer *time.Timer, timeout time.Duration) {
+
+	buf := make([]byte, 100, 100)
+	c := time.Tick(time.Millisecond)
+	for range c {
+		n, err := io.CopyBuffer(writer, reader, buf)
+		if err != nil {
+			done <- err
+			break
+		}
+		if n > 0 {
+			timer.Reset(timeout)
+		}
+	}
+}
