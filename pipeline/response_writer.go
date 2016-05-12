@@ -7,11 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"log"
 )
 
 const (
-	cancelFuncKey = "pipeline:cancel"
+	CancelFuncKey = "gozerian:cancel"
 )
 
 func NewResponseWriter(writer http.ResponseWriter, ctx context.Context) ResponseWriter {
@@ -22,7 +21,7 @@ func NewResponseWriter(writer http.ResponseWriter, ctx context.Context) Response
 	timeout := config.Get("timeout").(time.Duration)
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
-	ctx = context.WithValue(ctx, cancelFuncKey, cancel)
+	ctx = context.WithValue(ctx, CancelFuncKey, cancel)
 
 	return responseWriter{writer, ctx, DefaultErrorHanderFunc}
 }
@@ -44,7 +43,6 @@ func (self responseWriter) Header() http.Header {
 }
 
 func (self responseWriter) Write(bytes []byte) (int, error) {
-	log.Print("3")
 	self.Cancel()
 	return self.writer.Write(bytes)
 }
@@ -65,19 +63,17 @@ func (self responseWriter) SendError(r interface{}) error {
 	} else {
 		err = errors.New(fmt.Sprintf("%s", r))
 	}
-	log.Printf("err: %v", err)
 	return self.errHandler(self, err)
 }
 
 func (self responseWriter) Cancel() {
 	if self.ctx.Err() == nil {
-		self.Context().Value(cancelFuncKey).(context.CancelFunc)()
+		self.Context().Value(CancelFuncKey).(context.CancelFunc)()
 	}
 }
 
 func DefaultErrorHanderFunc(writer http.ResponseWriter, err error) error {
 	writer.WriteHeader(500)
 	_, err = writer.Write([]byte(err.Error()))
-	log.Print("4")
 	return err
 }
