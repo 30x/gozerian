@@ -41,9 +41,6 @@ func (self ReverseProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Reque
 		} else {
 			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
 		}
-
-		// adjust target host in case handlers changed it
-		req.URL.Host = req.URL.Host
 	}
 
 	resHandler := self.Pipeline.ResponseHandlerFunc()
