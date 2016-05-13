@@ -3,41 +3,54 @@ package ext_gateway
 import (
 	"net/http"
 	"golang.org/x/net/context"
-	"net"
-	"bufio"
 	"github.com/30x/gozerian/pipeline"
 	"bytes"
 	"io/ioutil"
 )
 
-func NewResponseWriter() pipeline.ResponseWriter {
-	response := new(http.Response)
-	buffer := new(bytes.Buffer)
-	response.Body = ioutil.NopCloser(buffer)
+type ResponseWriter interface {
+	pipeline.ResponseWriter
+	GetResponse() *http.Response
+}
 
-	writer := responseWriter{buffer, response}
+// the returned Response is written to by the returned ResponseWriter
+func NewResponseWriter() ResponseWriter {
+	res := new(http.Response)
+	buffer := new(bytes.Buffer)
+	res.Body = ioutil.NopCloser(buffer)
+
+	w := internalResponseWriter{buffer, res}
 
 	ctx := context.Background()
-	return pipeline.NewResponseWriter(writer, ctx)
+
+	writer := pipeline.NewResponseWriter(w, ctx)
+
+	return responseWriter{writer, res}
 }
 
 type responseWriter struct {
-	Buffer bytes.Buffer
-	Response http.Response
+	pipeline.ResponseWriter
+	response *http.Response
 }
 
-func (self responseWriter) Header() http.Header {
-	return self.Response.Header
+func (self responseWriter) GetResponse() *http.Response {
+	return self.response
 }
 
-func (self responseWriter) Write(bytes []byte) (int, error) {
-	return self.Buffer.Write(bytes)
+
+type internalResponseWriter struct {
+	buffer   *bytes.Buffer
+	response *http.Response
 }
 
-func (self responseWriter) WriteHeader(status int) {
-	self.Response.Status = status
+func (self internalResponseWriter) Header() http.Header {
+	return self.response.Header
 }
 
-type Request struct {
-	http.Request
+func (self internalResponseWriter) Write(bytes []byte) (int, error) {
+	return self.buffer.Write(bytes)
+}
+
+func (self internalResponseWriter) WriteHeader(statusCode int) {
+	self.response.StatusCode = statusCode
 }

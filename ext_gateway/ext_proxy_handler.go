@@ -3,38 +3,42 @@ package ext_gateway
 import (
 	"net/http"
 	"github.com/30x/gozerian/pipeline"
-	"net/url"
-	"io"
 )
 
-type ExtResponse struct {
-	Status int
-	Header http.Header
-	Body io.Reader
-}
-
 type ExtProxyHandler struct {
-	pipeline pipeline.Pipeline
+	Pipeline pipeline.Pipeline
+	Writer ResponseWriter
 }
 
-// changes to Request Method, URL, Header, and Body are intended to affect proxying to target
-// however, if Response is not nil, send Response to client and do not continue target request
-func (self ExtProxyHandler) HandleRequest(req *http.Request) (res http.Response) {
+// changes to passed Request Method, URL, Header, and Body are intended to affect proxying to target
+// however, if response is not nil, send Response to client and do not continue target request
+func (self ExtProxyHandler) HandleRequest(req *http.Request) *http.Response {
 
-	writer := NewResponseWriter{}
+	ctx := self.Writer.Context()
 
-	ctx := writer.(pipeline.ContextHolder).Context()
-
-	reqHandler := self.pipeline.RequestHandlerFunc()
-	reqHandler(writer, req)
+	reqHandler := self.Pipeline.RequestHandlerFunc()
+	reqHandler(self.Writer, req)
 
 	if ctx.Err() != nil {
-		res = http.Response{}
+		return self.Writer.GetResponse()
+	}
+
+	return nil
+}
+
+// the passed Request should be the original request from the client
+// the passed Response should include Header and Body from the target
+// the Response returned will include the final Header and Body to send to the client
+func (self ExtProxyHandler) HandleResponse(req *http.Request, res *http.Response) *http.Response {
+
+	ctx := self.Writer.Context()
+
+	resHandler := self.Pipeline.ResponseHandlerFunc()
+	resHandler(self.Writer, req, res)
+
+	if ctx.Err() != nil {
+		return self.Writer.GetResponse()
 	}
 
 	return res
-}
-
-func (self ExtProxyHandler) HandleResponse(res ExtResponse) ExtResponse {
-	return nil
 }
