@@ -16,11 +16,8 @@ import (
 	"bufio"
 	"net/url"
 	"strconv"
-	"log"
 	"github.com/gorilla/websocket"
 )
-
-var _ = log.Print // avoid having to add/remove the log import so much
 
 // Test framework: http://onsi.github.io/ginkgo/
 
@@ -298,7 +295,9 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				// send the request
 				res, _ := http.Get(gateway.URL)
-				defer res.Body.Close()
+				if res != nil {
+					res.Body.Close()
+				}
 			})
 
 			It("should be able to handle an error using default error handler", func() {
@@ -537,6 +536,13 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 				Expect(string(body)).To(Equal(errMsg))
 			})
 		})
+	})
+}
+
+// only tested in go_gateway, not ext_gateway
+func TestPipelineSocketUpgradesAgainst(newGateway NewGatewayFunc) bool {
+
+	return Describe("Pipeline", func() {
 
 		Context("web socket upgrade", func() {
 

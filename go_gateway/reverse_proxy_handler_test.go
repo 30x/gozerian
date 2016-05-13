@@ -25,3 +25,4 @@ func makeGateway(targetURL string, reqHands []http.HandlerFunc, resHands []Respo
 }
 
 var _ = test_util.TestPipelineAgainst(makeGateway)
+var _ = test_util.TestPipelineSocketUpgradesAgainst(makeGateway)

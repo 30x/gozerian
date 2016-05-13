@@ -1,7 +1,6 @@
 package go_gateway
 
 import (
-	"log"
 	"net/http"
 	"net"
 	"bufio"
@@ -10,8 +9,6 @@ import (
 	"io"
 	"github.com/30x/gozerian/pipeline"
 )
-
-var _ = log.Print // avoid having to add/remove the log import so much
 
 type targetTransport struct {
 	http.RoundTripper
