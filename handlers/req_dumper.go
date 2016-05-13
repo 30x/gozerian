@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http/httputil"
 	"io"
+	"github.com/30x/gozerian/pipeline"
 )
 
 
@@ -25,7 +26,10 @@ func (self requestDumper) handleRequest(w http.ResponseWriter, r *http.Request) 
 		r.Body = loggingReadCloser{r.Body, id + ">>"}
 	}
 	log.Printf("======================== request %s ========================", id)
-	dump, _ := httputil.DumpRequest(r, false)
+	dump, err := httputil.DumpRequest(r, false)
+	if err != nil {
+		w.(pipeline.PipelineControl).SendError(err)
+	}
 	log.Print(string(dump))
 }
 

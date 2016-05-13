@@ -24,6 +24,9 @@ func (self responseDumper) handleResponse(w http.ResponseWriter, r *http.Request
 		res.Body = loggingReadCloser{res.Body, id + "<<"}
 	}
 	log.Printf("======================== response %s ========================", id)
-	dump, _ := httputil.DumpResponse(res, false)
+	dump, err := httputil.DumpResponse(res, false)
+	if err != nil {
+		w.(pipeline.PipelineControl).SendError(err)
+	}
 	log.Print(string(dump))
 }
