@@ -15,17 +15,20 @@ type ResponseWriter interface {
 
 // the returned Response is written to by the returned ResponseWriter
 func NewResponseWriter() ResponseWriter {
-	res := new(http.Response)
-	buffer := new(bytes.Buffer)
+	res := &http.Response{
+		Header: http.Header{},
+	}
+
+	buffer := &bytes.Buffer{}
 	res.Body = ioutil.NopCloser(buffer)
 
-	w := internalResponseWriter{buffer, res}
+	w := &internalResponseWriter{buffer, res}
 
 	ctx := context.Background()
 
 	writer := pipeline.NewResponseWriter(w, ctx)
 
-	return responseWriter{writer, res}
+	return &responseWriter{writer, res}
 }
 
 type responseWriter struct {
@@ -33,7 +36,7 @@ type responseWriter struct {
 	response *http.Response
 }
 
-func (self responseWriter) GetResponse() *http.Response {
+func (self *responseWriter) GetResponse() *http.Response {
 	return self.response
 }
 
@@ -43,14 +46,14 @@ type internalResponseWriter struct {
 	response *http.Response
 }
 
-func (self internalResponseWriter) Header() http.Header {
+func (self *internalResponseWriter) Header() http.Header {
 	return self.response.Header
 }
 
-func (self internalResponseWriter) Write(bytes []byte) (int, error) {
+func (self *internalResponseWriter) Write(bytes []byte) (int, error) {
 	return self.buffer.Write(bytes)
 }
 
-func (self internalResponseWriter) WriteHeader(statusCode int) {
+func (self *internalResponseWriter) WriteHeader(statusCode int) {
 	self.response.StatusCode = statusCode
 }

@@ -83,7 +83,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 			// check the received response
 			body, _ := ioutil.ReadAll(res.Body)
 			Expect(res.StatusCode).To(Equal(500))
-			Expect(string(body)).To(Equal("dial tcp [::1]:9999: getsockopt: connection refused"))
+			Expect(string(body)).To(HavePrefix("dial tcp [::1]:9999: getsockopt: connection refused"))
 		})
 
 		PIt("should timeout request")
@@ -322,7 +322,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				Expect(res.StatusCode).To(Equal(500))
 				body, _ := ioutil.ReadAll(res.Body)
-				Expect(string(body)).To(Equal(errMsg))
+				Expect(string(body)).To(HavePrefix(errMsg))
 			})
 
 			It("should be able to handle a panic using default error handler", func() {
@@ -347,7 +347,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				Expect(res.StatusCode).To(Equal(500))
 				body, _ := ioutil.ReadAll(res.Body)
-				Expect(string(body)).To(Equal(errMsg))
+				Expect(string(body)).To(HavePrefix(errMsg))
 			})
 		})
 
@@ -507,7 +507,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 				// check the response
 				Expect(res.StatusCode).To(Equal(500))
 				body, _ := ioutil.ReadAll(res.Body)
-				Expect(string(body)).To(Equal(errMsg))
+				Expect(string(body)).To(HavePrefix(errMsg))
 			})
 
 			It("should be able to handle a panic using default error handler", func() {
@@ -533,7 +533,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 				// check the response
 				Expect(res.StatusCode).To(Equal(500))
 				body, _ := ioutil.ReadAll(res.Body)
-				Expect(string(body)).To(Equal(errMsg))
+				Expect(string(body)).To(HavePrefix(errMsg))
 			})
 		})
 	})

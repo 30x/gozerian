@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime/debug"
 )
 
 const (
@@ -23,7 +24,7 @@ func NewResponseWriter(writer http.ResponseWriter, ctx context.Context) Response
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	ctx = context.WithValue(ctx, CancelFuncKey, cancel)
 
-	return responseWriter{writer, ctx, DefaultErrorHanderFunc}
+	return &responseWriter{writer, ctx, DefaultErrorHanderFunc}
 }
 
 type ResponseWriter interface {
@@ -38,25 +39,25 @@ type responseWriter struct {
 	errHandler ErrorHandlerFunc
 }
 
-func (self responseWriter) Header() http.Header {
+func (self *responseWriter) Header() http.Header {
 	return self.writer.Header()
 }
 
-func (self responseWriter) Write(bytes []byte) (int, error) {
+func (self *responseWriter) Write(bytes []byte) (int, error) {
 	self.Cancel()
 	return self.writer.Write(bytes)
 }
 
-func (self responseWriter) WriteHeader(status int) {
+func (self *responseWriter) WriteHeader(status int) {
 	self.Cancel()
 	self.writer.WriteHeader(status)
 }
 
-func (self responseWriter) Context() context.Context {
+func (self *responseWriter) Context() context.Context {
 	return self.ctx
 }
 
-func (self responseWriter) SendError(r interface{}) error {
+func (self *responseWriter) SendError(r interface{}) error {
 	var err error
 	if reflect.TypeOf(r).String() != "error" {
 		err = r.(error)
@@ -66,14 +67,19 @@ func (self responseWriter) SendError(r interface{}) error {
 	return self.errHandler(self, err)
 }
 
-func (self responseWriter) Cancel() {
+func (self *responseWriter) Cancel() {
 	if self.ctx.Err() == nil {
 		self.Context().Value(CancelFuncKey).(context.CancelFunc)()
 	}
 }
 
+func (self *responseWriter) SetErrorHandler(eh ErrorHandlerFunc) {
+	self.errHandler = eh
+}
+
 func DefaultErrorHanderFunc(writer http.ResponseWriter, err error) error {
 	writer.WriteHeader(500)
-	_, err = writer.Write([]byte(err.Error()))
+	_, err = writer.Write([]byte(err.Error() + "\n"))
+	_, err = writer.Write(debug.Stack())
 	return err
 }
