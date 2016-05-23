@@ -23,7 +23,7 @@ func makeGateway(targetURL string, reqHands []http.HandlerFunc, resHands []pipel
 
 	target, _:= url.Parse(targetURL)
 	pipeline := pipeline.Pipeline{reqHands, resHands}
-	writer := NewResponseWriter()
+	writer := NewResponseWriter(nil)
 	proxyHandler := ExtProxyHandler{pipeline, writer}
 
 	handler := server{target, &proxyHandler}

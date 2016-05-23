@@ -14,7 +14,7 @@ type ResponseWriter interface {
 }
 
 // the returned Response is written to by the returned ResponseWriter
-func NewResponseWriter() ResponseWriter {
+func NewResponseWriter(w http.ResponseWriter) ResponseWriter {
 	res := &http.Response{
 		Header: http.Header{},
 	}
@@ -22,7 +22,9 @@ func NewResponseWriter() ResponseWriter {
 	buffer := &bytes.Buffer{}
 	res.Body = ioutil.NopCloser(buffer)
 
-	w := &internalResponseWriter{buffer, res}
+	if w == nil {
+		w = &internalResponseWriter{buffer, res}
+	}
 
 	ctx := context.Background()
 
