@@ -1,4 +1,4 @@
-package ext_gateway_test
+package c_gateway_test
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestExtGateway(t *testing.T) {
+func TestCGateway(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "ExtGateway Suite")
+	RunSpecs(t, "CGateway Suite")
 }
