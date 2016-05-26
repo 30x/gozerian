@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"errors"
 	"fmt"
+	"golang.org/x/net/context"
 )
 
 type Pipeline struct {
@@ -13,8 +14,13 @@ type Pipeline struct {
 
 func (self *Pipeline) RequestHandlerFunc() http.HandlerFunc {
 
-	// ResponseWriter must be a ContextHolder
 	return func(w http.ResponseWriter, r *http.Request) {
+
+		// ResponseWriter must be a ContextHolder
+		_, ok := w.(ContextHolder)
+		if (!ok) {
+			w = NewResponseWriter(w, context.Background())
+		}
 
 		ctx := w.(ContextHolder).Context()
 
@@ -37,8 +43,13 @@ func (self *Pipeline) RequestHandlerFunc() http.HandlerFunc {
 
 func (self *Pipeline) ResponseHandlerFunc() ResponseHandlerFunc {
 
-	// ResponseWriter must be a ContextHolder
 	return func(w http.ResponseWriter, r *http.Request, res *http.Response) {
+
+		// ResponseWriter must be a ContextHolder
+		_, ok := w.(ContextHolder)
+		if (!ok) {
+			w = NewResponseWriter(w, context.Background())
+		}
 
 		ctx := w.(ContextHolder).Context()
 
