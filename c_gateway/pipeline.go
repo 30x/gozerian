@@ -12,14 +12,9 @@ import (
 )
 
 // external interface for gozerian-c
-func CreatePipeline(id string, configUrl *url.URL) *pipeline.Pipeline {
+func CreatePipeline(id string, configUrl *url.URL) (*pipeline.Pipeline, error) {
 
 	// todo: read config & do appropriate. for now, just return a test impl...
-
-	//res, err := http.Get(configUrl.String())
-	//defer res.Body.Close()
-	//decoder := json.NewDecoder(res.Body)
-	//config := decoder.Decode()
 
 	var reqHands []http.HandlerFunc
 	reqHands = append(reqHands, handlers.RequestDumper(false))
@@ -29,7 +24,7 @@ func CreatePipeline(id string, configUrl *url.URL) *pipeline.Pipeline {
 	resHands = append(resHands, handlers.ResponseDumper(false))
 	resHands = append(resHands, testHandleResponse)
 
-	return &pipeline.Pipeline{reqHands, resHands}
+	return &pipeline.Pipeline{reqHands, resHands}, nil
 }
 
 
