@@ -288,7 +288,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				// create the gateway
 				requestHandlers := []http.HandlerFunc{func(w http.ResponseWriter, r *http.Request) {
-					w.(PipelineControl).Cancel()
+					w.(ControlHolder).Control().Cancel()
 				}}
 				gateway := newGateway(target.URL, requestHandlers, noResponseHandlers)
 				defer gateway.Close()
@@ -311,7 +311,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				// create the gateway
 				requestHandlers := []http.HandlerFunc{func(w http.ResponseWriter, r *http.Request) {
-					w.(PipelineControl).SendError(errors.New(errMsg))
+					w.(ControlHolder).Control().SendError(errors.New(errMsg))
 				}}
 				gateway := newGateway(target.URL, requestHandlers, noResponseHandlers)
 				defer gateway.Close()
@@ -495,7 +495,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				// create the gateway
 				responseHandlers := []ResponseHandlerFunc{func(w http.ResponseWriter, r *http.Request, res *http.Response) {
-					w.(PipelineControl).SendError(errors.New(errMsg))
+					w.(ControlHolder).Control().SendError(errors.New(errMsg))
 				}}
 				gateway := newGateway(target.URL, noRequestHandlers, responseHandlers)
 				defer gateway.Close()

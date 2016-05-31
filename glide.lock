@@ -1,8 +1,16 @@
-hash: 33cbd5ce0064483754f6a8f3a38097e4259a2b624ec7f2143b91c6ef568d350c
-updated: 2016-04-28T08:26:37.533198465-07:00
+hash: df0ef40f5787acffd4923dd078d9aa189adbd902546db5a7698ef8dc02b3bf73
+updated: 2016-05-27T09:59:44.05670258-07:00
 imports:
 - name: github.com/gorilla/websocket
-  version: a724ba452858d5b6d30c22d2d13ae77e1ed67cad
+  version: afffb151969cb38ce452b0e1b8d20cd91fe7cd45
 - name: github.com/justinas/alice.git
-  version: 671ef6b31288a51b5517ba2f1349e781b91a4da3
+  version: 052b8b6c18edb9db317af86806d8e00ebaa94160
+- name: github.com/Sirupsen/logrus
+  version: 6d9ae300aaf85d6acd2e5424081c7fcddb21dab8
+- name: gopkg.in/airbrake/gobrake.v2
+  version: 31c8ff1fb8b79a6947e6565e9a6df535f98a6b94
+  repo: https://gopkg.in/airbrake/gobrake.v2
+- name: gopkg.in/gemnasium/logrus-airbrake-hook.v2
+  version: 31e6fd4bd5a98d8ee7673d24bc54ec73c31810dd
+  repo: https://gopkg.in/gemnasium/logrus-airbrake-hook.v2
 devImports: []

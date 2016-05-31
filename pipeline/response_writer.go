@@ -3,40 +3,28 @@ package pipeline
 import (
 	"golang.org/x/net/context"
 	"net/http"
-	"time"
-	"errors"
-	"fmt"
-	"reflect"
-	"runtime/debug"
-)
-
-const (
-	CancelFuncKey = "gozerian:cancel"
 )
 
 func NewResponseWriter(writer http.ResponseWriter, ctx context.Context) ResponseWriter {
 
+	// todo: set config elsewhere
 	config := NewDefaultConfig()
-	ctx = context.WithValue(ctx, "config", config)
 
-	timeout := config.Get("timeout").(time.Duration)
+	ctx, cancel := context.WithTimeout(ctx, config.Timeout())
 
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	ctx = context.WithValue(ctx, CancelFuncKey, cancel)
+	control := NewPipelineControl(ctx, writer, config, cancel)
 
-	return &responseWriter{writer, ctx, DefaultErrorHanderFunc}
+	return &responseWriter{writer, control}
 }
 
 type ResponseWriter interface {
 	http.ResponseWriter
-	ContextHolder
-	PipelineControl
+	ControlHolder
 }
 
 type responseWriter struct {
-	writer     http.ResponseWriter
-	ctx        context.Context
-	errHandler ErrorHandlerFunc
+	writer  http.ResponseWriter
+	control PipelineControl
 }
 
 func (self *responseWriter) Header() http.Header {
@@ -44,42 +32,17 @@ func (self *responseWriter) Header() http.Header {
 }
 
 func (self *responseWriter) Write(bytes []byte) (int, error) {
-	self.Cancel()
+	self.control.Logger().Debug("Write:", string(bytes))
+	self.control.Cancel()
 	return self.writer.Write(bytes)
 }
 
 func (self *responseWriter) WriteHeader(status int) {
-	self.Cancel()
+	self.control.Logger().Debug("WriteHeader:", status)
+	self.control.Cancel()
 	self.writer.WriteHeader(status)
 }
 
-func (self *responseWriter) Context() context.Context {
-	return self.ctx
-}
-
-func (self *responseWriter) SendError(r interface{}) error {
-	var err error
-	if reflect.TypeOf(r).String() != "error" {
-		err = r.(error)
-	} else {
-		err = errors.New(fmt.Sprintf("%s", r))
-	}
-	return self.errHandler(self, err)
-}
-
-func (self *responseWriter) Cancel() {
-	if self.ctx.Err() == nil {
-		self.Context().Value(CancelFuncKey).(context.CancelFunc)()
-	}
-}
-
-func (self *responseWriter) SetErrorHandler(eh ErrorHandlerFunc) {
-	self.errHandler = eh
-}
-
-func DefaultErrorHanderFunc(writer http.ResponseWriter, err error) error {
-	writer.WriteHeader(500)
-	_, err = writer.Write([]byte(err.Error() + "\n"))
-	_, err = writer.Write(debug.Stack())
-	return err
+func (self *responseWriter) Control() PipelineControl {
+	return self.control
 }

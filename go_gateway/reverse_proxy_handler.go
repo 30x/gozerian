@@ -9,6 +9,7 @@ import (
 	"path"
 	"net/http/httputil"
 	"github.com/30x/gozerian/pipeline"
+	"golang.org/x/net/context"
 )
 
 type ReverseProxyHandler struct {
@@ -19,15 +20,13 @@ type ReverseProxyHandler struct {
 func (self ReverseProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	req.URL.Host = self.Target.Host
 
-	writer := NewResponseWriter(w)
-	ctx := writer.Context()
+	writer := NewResponseWriter(w, context.Background())
 
 	// call request handlers
-	reqHandler := self.Pipeline.RequestHandlerFunc()
-	reqHandler(writer, req)
+	self.Pipeline.RequestHandlerFunc()(writer, req)
 
-	// some error occurred, abort pipeline
-	if ctx.Err() != nil {
+	// abort pipeline as needed
+	if writer.Control().Cancelled() {
 		return
 	}
 

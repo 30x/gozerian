@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/net/context"
+	"github.com/Sirupsen/logrus"
 )
 
 type Pipeline struct {
@@ -16,27 +17,20 @@ func (self *Pipeline) RequestHandlerFunc() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		// ResponseWriter must be a ContextHolder
-		_, ok := w.(ContextHolder)
+		writer, ok := w.(ResponseWriter)
 		if (!ok) {
-			w = NewResponseWriter(w, context.Background())
+			writer = NewResponseWriter(w, context.Background())
 		}
+		pc := writer.Control()
+		defer recoveryFunc(pc)
 
-		ctx := w.(ContextHolder).Context()
-
-		defer func() {
-			if r := recover(); r != nil {
-				err := errors.New(fmt.Sprintf("%s", r))
-				w.(PipelineControl).SendError(err)
-			}
-		}()
+		pc.SetLogger(loggerWithFields(r))
 
 		for _, handler := range self.ReqHandlers {
-
-			if ctx.Err() != nil {
+			if pc.Cancelled() {
 				break
 			}
-			handler(w, r)
+			handler(writer, r)
 		}
 	}
 }
@@ -45,27 +39,38 @@ func (self *Pipeline) ResponseHandlerFunc() ResponseHandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request, res *http.Response) {
 
-		// ResponseWriter must be a ContextHolder
-		_, ok := w.(ContextHolder)
+		writer, ok := w.(ResponseWriter)
 		if (!ok) {
-			w = NewResponseWriter(w, context.Background())
+			writer = NewResponseWriter(w, context.Background())
 		}
+		pc := writer.Control()
+		defer recoveryFunc(pc)
 
-		ctx := w.(ContextHolder).Context()
-
-		defer func() {
-			if r := recover(); r != nil {
-				err := errors.New(fmt.Sprintf("%s", r))
-				w.(PipelineControl).SendError(err)
-			}
-		}()
+		pc.SetLogger(loggerWithFields(r))
 
 		for _, handler := range self.ResHandlers {
-			if ctx.Err() != nil {
+			if pc.Cancelled() {
 				break
 			}
-			handler(w, r, res)
+			handler(writer, r, res)
 		}
 
 	}
+}
+
+func recoveryFunc(pc PipelineControl) {
+	if r := recover(); r != nil {
+		err := errors.New(fmt.Sprintf("%s", r))
+		pc.Logger().Warn("Panic Recovery Error: ", err)
+		pc.SendError(err)
+	}
+}
+
+func loggerWithFields(r *http.Request) Logger {
+	id := -1 // todo: get ID from lib-gozerian
+	f := logrus.Fields{
+		"id": id,
+		"URI": r.RequestURI,
+	}
+	return logrus.WithFields(f)
 }

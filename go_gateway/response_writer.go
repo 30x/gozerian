@@ -11,12 +11,10 @@ import (
 type ResponseWriter interface {
 	http.ResponseWriter
 	http.Hijacker
-	pipeline.ContextHolder
-	pipeline.PipelineControl
+	pipeline.ControlHolder
 }
 
-func NewResponseWriter(writer http.ResponseWriter) ResponseWriter {
-	ctx := context.Background()
+func NewResponseWriter(writer http.ResponseWriter, ctx context.Context) ResponseWriter {
 	return responseWriter{pipeline.NewResponseWriter(writer, ctx), writer}
 }
 

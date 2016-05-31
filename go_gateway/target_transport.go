@@ -28,14 +28,14 @@ func (self *targetTransport) RoundTrip(req *http.Request) (res *http.Response, e
 	// call target
 	res, err = self.RoundTripper.RoundTrip(req)
 	if err != nil {
-		self.writer.SendError(err)
+		self.writer.Control().SendError(err)
 		return nil, err
 	}
 
 	// run response handlers
 	self.resHandler(self.writer, self.origReq, res)
 
-	return res, self.writer.Context().Err()
+	return res, self.writer.Control().Error()
 }
 
 func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Response, err error) {
@@ -78,9 +78,9 @@ func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Res
 	done := make(chan error)
 
 	// set timeout timer
-	ctx := self.writer.(pipeline.ContextHolder).Context()
-	timeout := ctx.Value("config").(pipeline.Config).Get("timeout").(time.Duration)
-	timer := time.AfterFunc(timeout, func() { close(done) })
+	config := self.writer.(pipeline.ControlHolder).Control().Config()
+	timeout := config.Timeout()
+	timer := time.AfterFunc(config.Timeout(), func() { close(done) })
 
 	// todo: pipe data through upgraded stream handlers!
 
