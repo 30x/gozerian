@@ -18,8 +18,11 @@ func makeGateway(targetURL string, reqHands []http.HandlerFunc, resHands []Respo
 	resHands = append(resHands, ResponseDumper(true))
 
 	target, _:= url.Parse(targetURL)
-	pipeline := Pipeline{reqHands, resHands}
-	proxyHandler := go_gateway.ReverseProxyHandler{pipeline, target}
+	pipeDef, err := DefinePipe(reqHands, resHands)
+	if err != nil {
+		panic(err)
+	}
+	proxyHandler := &go_gateway.ReverseProxyHandler{pipeDef, target}
 
 	return httptest.NewServer(proxyHandler)
 }

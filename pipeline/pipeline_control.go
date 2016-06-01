@@ -12,9 +12,10 @@ type ControlHolder interface {
 	Control() PipelineControl
 }
 
+type ExtraData map[interface{}]interface{}
+
 type PipelineControl interface {
 	RequestId() string
-	SetRequestId(reqId string)
 
 	SetErrorHandler(eh ErrorHandlerFunc)
 	ErrorHandler() ErrorHandlerFunc
@@ -25,13 +26,27 @@ type PipelineControl interface {
 	Cancelled() bool
 
 	Log() Logger
-	SetLog(logger Logger)
 
 	Config() Config
+
+	UserData() ExtraData
 }
 
-func NewPipelineControl(ctx context.Context, w http.ResponseWriter, config Config, cancel context.CancelFunc) PipelineControl {
-	return &pipelineControl{ctx, w, DefaultErrorHanderFunc, config, config.Log(), cancel, ""}
+type pipelineAdmin interface {
+	systemData() ExtraData
+}
+
+func NewPipelineControl(reqId string, ctx context.Context, w http.ResponseWriter,
+			config Config, log Logger, cancel context.CancelFunc) PipelineControl {
+	return &pipelineControl{
+		ctx: ctx,
+		writer: w,
+		errorHandler: DefaultErrorHanderFunc,
+		config: config,
+		logger: log,
+		cancel: cancel,
+		reqId: reqId,
+	}
 }
 
 type pipelineControl struct {
@@ -42,14 +57,16 @@ type pipelineControl struct {
 	logger       Logger
 	cancel       context.CancelFunc
 	reqId        string
+	userData     ExtraData
+	systemData   ExtraData
+}
+
+func (self *pipelineControl) UserData() ExtraData {
+	return self.userData
 }
 
 func (self *pipelineControl) RequestId() string {
 	return self.reqId
-}
-
-func (self *pipelineControl) SetRequestId(reqId string) {
-	self.reqId = reqId
 }
 
 func (self *pipelineControl) Config() Config {
@@ -58,10 +75,6 @@ func (self *pipelineControl) Config() Config {
 
 func (self *pipelineControl) Log() Logger {
 	return self.logger
-}
-
-func (self *pipelineControl) SetLog(logger Logger) {
-	self.logger = logger
 }
 
 func (self *pipelineControl) ErrorHandler() ErrorHandlerFunc {

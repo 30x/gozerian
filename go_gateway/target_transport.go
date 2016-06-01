@@ -12,7 +12,8 @@ import (
 
 type targetTransport struct {
 	http.RoundTripper
-	writer     pipeline.ResponseWriter
+	control    pipeline.PipelineControl
+	writer     http.ResponseWriter
 	origReq	   *http.Request
 	resHandler pipeline.ResponseHandlerFunc
 }
@@ -28,14 +29,14 @@ func (self *targetTransport) RoundTrip(req *http.Request) (res *http.Response, e
 	// call target
 	res, err = self.RoundTripper.RoundTrip(req)
 	if err != nil {
-		self.writer.Control().SendError(err)
+		self.control.SendError(err)
 		return nil, err
 	}
 
 	// run response handlers
 	self.resHandler(self.writer, self.origReq, res)
 
-	return res, self.writer.Control().Error()
+	return res, self.control.Error()
 }
 
 func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Response, err error) {
@@ -78,7 +79,8 @@ func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Res
 	done := make(chan error)
 
 	// set timeout timer
-	config := self.writer.(pipeline.ControlHolder).Control().Config()
+	// todo: can we get the elapsed time left instead?
+	config := self.control.Config()
 	timeout := config.Timeout()
 	timer := time.AfterFunc(config.Timeout(), func() { close(done) })
 

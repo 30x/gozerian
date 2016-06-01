@@ -1,16 +1,10 @@
 package pipeline
 
 import (
-	"golang.org/x/net/context"
 	"net/http"
 )
 
-func NewResponseWriter(writer http.ResponseWriter) ResponseWriter {
-
-	config := GetConfig()
-	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout())
-	control := NewPipelineControl(ctx, writer, config, cancel)
-
+func NewResponseWriter(writer http.ResponseWriter, control PipelineControl) ResponseWriter {
 	return &responseWriter{writer, control}
 }
 

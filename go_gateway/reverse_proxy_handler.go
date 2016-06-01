@@ -9,30 +9,25 @@ import (
 	"path"
 	"net/http/httputil"
 	"github.com/30x/gozerian/pipeline"
-	"strconv"
-	"sync/atomic"
 )
 
 type ReverseProxyHandler struct {
-	Pipeline pipeline.Pipeline
-	Target   *url.URL
+	Definition pipeline.Definition
+	Target     *url.URL
 }
 
-var reqCounter int64
-
-func (self ReverseProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-
-	reqId := string(strconv.FormatInt(atomic.AddInt64(&reqCounter, 1), 10))
+func (self *ReverseProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	req.URL.Host = self.Target.Host
 
-	writer := NewResponseWriter(w)
+	//writer := NewResponseWriter(w)
+	pipe := self.Definition.CreatePipe("")
 
 	// call request handlers
-	self.Pipeline.RequestHandlerFunc(reqId)(writer, req)
+	pipe.RequestHandlerFunc()(w, req)
 
 	// abort pipeline as needed
-	if writer.Control().Cancelled() {
+	if pipe.Control().Cancelled() {
 		return
 	}
 
@@ -48,8 +43,8 @@ func (self ReverseProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Reque
 		}
 	}
 
-	resHandler := self.Pipeline.ResponseHandlerFunc(reqId)
-	transport := &targetTransport{http.DefaultTransport, writer, req, resHandler}
+	resHandler := pipe.ResponseHandlerFunc()
+	transport := &targetTransport{http.DefaultTransport, pipe.Control(), w, req, resHandler}
 	targetProxy := &httputil.ReverseProxy{Director: director, Transport: transport}
-	targetProxy.ServeHTTP(writer, req)
+	targetProxy.ServeHTTP(w, req)
 }

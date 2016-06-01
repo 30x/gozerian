@@ -33,9 +33,12 @@ func main() {
 		ResponseDumper(true),
 	}
 
-	pipeline := Pipeline{requestHandlers, responseHandlers}
+	pipeDef, err := DefinePipe(requestHandlers, responseHandlers)
+	if err != nil {
+		panic(err)
+	}
 
-	proxyHandler := go_gateway.ReverseProxyHandler{pipeline, target}
+	proxyHandler := go_gateway.ReverseProxyHandler{pipeDef, target}
 
 	log.Printf("Gateway routing port %s => %s", sourcePort, target)
 
