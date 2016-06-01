@@ -5,13 +5,10 @@ import (
 	"net/http"
 )
 
-func NewResponseWriter(writer http.ResponseWriter, ctx context.Context) ResponseWriter {
+func NewResponseWriter(writer http.ResponseWriter) ResponseWriter {
 
-	// todo: set config elsewhere
-	config := NewDefaultConfig()
-
-	ctx, cancel := context.WithTimeout(ctx, config.Timeout())
-
+	config := GetConfig()
+	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout())
 	control := NewPipelineControl(ctx, writer, config, cancel)
 
 	return &responseWriter{writer, control}
@@ -32,13 +29,13 @@ func (self *responseWriter) Header() http.Header {
 }
 
 func (self *responseWriter) Write(bytes []byte) (int, error) {
-	self.control.Logger().Debug("Write:", string(bytes))
+	self.control.Log().Debug("Write:", string(bytes))
 	self.control.Cancel()
 	return self.writer.Write(bytes)
 }
 
 func (self *responseWriter) WriteHeader(status int) {
-	self.control.Logger().Debug("WriteHeader:", status)
+	self.control.Log().Debug("WriteHeader:", status)
 	self.control.Cancel()
 	self.writer.WriteHeader(status)
 }

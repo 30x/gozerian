@@ -2,24 +2,21 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
-	"sync/atomic"
 	"log"
 	"net/http/httputil"
 	"github.com/30x/gozerian/pipeline"
 )
 
 func ResponseDumper(dumpBody bool) pipeline.ResponseHandlerFunc {
-	return responseDumper{dumpBody, 0}.handleResponse
+	return responseDumper{dumpBody}.handleResponse
 }
 
 type responseDumper struct {
 	dumpBody   bool
-	resCounter int64
 }
 
 func (self responseDumper) handleResponse(w http.ResponseWriter, r *http.Request, res *http.Response) {
-	id := strconv.FormatInt(atomic.AddInt64(&self.resCounter, 1), 10)
+	id := w.(pipeline.ControlHolder).Control().RequestId()
 	if self.dumpBody {
 		res.Body = loggingReadCloser{res.Body, id + "<<"}
 	}

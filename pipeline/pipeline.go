@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"github.com/Sirupsen/logrus"
 )
 
@@ -13,18 +12,16 @@ type Pipeline struct {
 	ResHandlers []ResponseHandlerFunc
 }
 
-func (self *Pipeline) RequestHandlerFunc() http.HandlerFunc {
+func (self *Pipeline) RequestHandlerFunc(reqId string) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		writer, ok := w.(ResponseWriter)
-		if (!ok) {
-			writer = NewResponseWriter(w, context.Background())
-		}
+		writer := wrapWriter(w)
 		pc := writer.Control()
 		defer recoveryFunc(pc)
 
-		pc.SetLogger(loggerWithFields(r))
+		pc.SetRequestId(reqId)
+		pc.SetLog(loggerWithFields(reqId, r))
 
 		for _, handler := range self.ReqHandlers {
 			if pc.Cancelled() {
@@ -35,18 +32,16 @@ func (self *Pipeline) RequestHandlerFunc() http.HandlerFunc {
 	}
 }
 
-func (self *Pipeline) ResponseHandlerFunc() ResponseHandlerFunc {
+func (self *Pipeline) ResponseHandlerFunc(reqId string) ResponseHandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request, res *http.Response) {
 
-		writer, ok := w.(ResponseWriter)
-		if (!ok) {
-			writer = NewResponseWriter(w, context.Background())
-		}
+		writer := wrapWriter(w)
 		pc := writer.Control()
 		defer recoveryFunc(pc)
 
-		pc.SetLogger(loggerWithFields(r))
+		pc.SetRequestId(reqId)
+		pc.SetLog(loggerWithFields(reqId, r))
 
 		for _, handler := range self.ResHandlers {
 			if pc.Cancelled() {
@@ -58,19 +53,26 @@ func (self *Pipeline) ResponseHandlerFunc() ResponseHandlerFunc {
 	}
 }
 
+func wrapWriter(w http.ResponseWriter) ResponseWriter {
+	writer, ok := w.(ResponseWriter)
+	if (!ok) {
+		writer = NewResponseWriter(w)
+	}
+	return writer
+}
+
 func recoveryFunc(pc PipelineControl) {
 	if r := recover(); r != nil {
 		err := errors.New(fmt.Sprintf("%s", r))
-		pc.Logger().Warn("Panic Recovery Error: ", err)
+		pc.Log().Warn("Panic Recovery Error: ", err)
 		pc.SendError(err)
 	}
 }
 
-func loggerWithFields(r *http.Request) Logger {
-	id := -1 // todo: get ID from lib-gozerian
+func loggerWithFields(reqId string, r *http.Request) Logger {
 	f := logrus.Fields{
-		"id": id,
-		"URI": r.RequestURI,
+		"id": reqId,
+		"uri": r.RequestURI,
 	}
-	return logrus.WithFields(f)
+	return GetConfig().Log().WithFields(f)
 }

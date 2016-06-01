@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
-	"sync/atomic"
 	"log"
 	"net/http/httputil"
 	"io"
@@ -12,16 +10,15 @@ import (
 
 
 func RequestDumper(dumpBody bool) http.HandlerFunc {
-	return requestDumper{dumpBody, 0}.handleRequest
+	return requestDumper{dumpBody}.handleRequest
 }
 
 type requestDumper struct {
 	dumpBody   bool
-	reqCounter int64
 }
 
 func (self requestDumper) handleRequest(w http.ResponseWriter, r *http.Request) {
-	id := strconv.FormatInt(atomic.AddInt64(&self.reqCounter, 1), 10)
+	id := w.(pipeline.ControlHolder).Control().RequestId()
 	if self.dumpBody {
 		r.Body = loggingReadCloser{r.Body, id + ">>"}
 	}

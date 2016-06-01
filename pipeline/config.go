@@ -12,7 +12,16 @@ type Value interface{}
 type Config interface {
 	Get(k Key) Value
 	Timeout() time.Duration
-	Logger() Logger
+	Log() Logger
+}
+
+var conf Config
+
+func GetConfig() Config {
+	if conf == nil {
+		conf = NewDefaultConfig()
+	}
+	return conf
 }
 
 const (
@@ -43,7 +52,7 @@ func (self *config) Timeout() time.Duration {
 }
 
 // todo: probably do this elsewhere?
-func (self *config) Logger() Logger {
+func (self *config) Log() Logger {
 	level, error := logrus.ParseLevel(self.values[ConfigLogLevel].(string))
 	if error != nil {
 		panic(error) // todo: handle error

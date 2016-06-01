@@ -2,7 +2,6 @@ package go_gateway
 
 import (
 	"net/http"
-	"golang.org/x/net/context"
 	"net"
 	"bufio"
 	"github.com/30x/gozerian/pipeline"
@@ -14,8 +13,8 @@ type ResponseWriter interface {
 	pipeline.ControlHolder
 }
 
-func NewResponseWriter(writer http.ResponseWriter, ctx context.Context) ResponseWriter {
-	return responseWriter{pipeline.NewResponseWriter(writer, ctx), writer}
+func NewResponseWriter(writer http.ResponseWriter) ResponseWriter {
+	return responseWriter{pipeline.NewResponseWriter(writer), writer}
 }
 
 type responseWriter struct {

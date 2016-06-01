@@ -13,6 +13,9 @@ type ControlHolder interface {
 }
 
 type PipelineControl interface {
+	RequestId() string
+	SetRequestId(reqId string)
+
 	SetErrorHandler(eh ErrorHandlerFunc)
 	ErrorHandler() ErrorHandlerFunc
 	SendError(err interface{}) error
@@ -21,14 +24,14 @@ type PipelineControl interface {
 	Cancel()
 	Cancelled() bool
 
-	Logger() Logger
-	SetLogger(logger Logger)
+	Log() Logger
+	SetLog(logger Logger)
 
 	Config() Config
 }
 
-func NewPipelineControl(ctx context.Context, w http.ResponseWriter, conf Config, cancel context.CancelFunc) PipelineControl {
-	return &pipelineControl{ctx, w, DefaultErrorHanderFunc, conf, conf.Logger(), cancel}
+func NewPipelineControl(ctx context.Context, w http.ResponseWriter, config Config, cancel context.CancelFunc) PipelineControl {
+	return &pipelineControl{ctx, w, DefaultErrorHanderFunc, config, config.Log(), cancel, ""}
 }
 
 type pipelineControl struct {
@@ -38,17 +41,26 @@ type pipelineControl struct {
 	config       Config
 	logger       Logger
 	cancel       context.CancelFunc
+	reqId        string
+}
+
+func (self *pipelineControl) RequestId() string {
+	return self.reqId
+}
+
+func (self *pipelineControl) SetRequestId(reqId string) {
+	self.reqId = reqId
 }
 
 func (self *pipelineControl) Config() Config {
 	return self.config
 }
 
-func (self *pipelineControl) Logger() Logger {
+func (self *pipelineControl) Log() Logger {
 	return self.logger
 }
 
-func (self *pipelineControl) SetLogger(logger Logger) {
+func (self *pipelineControl) SetLog(logger Logger) {
 	self.logger = logger
 }
 
@@ -60,7 +72,7 @@ func (self *pipelineControl) ErrorHandler() ErrorHandlerFunc {
 }
 
 func (self *pipelineControl) SetErrorHandler(eh ErrorHandlerFunc) {
-	self.Logger().Debug("SetErrorHandler", eh)
+	self.Log().Debug("SetErrorHandler", eh)
 	self.errorHandler = eh
 }
 
@@ -68,7 +80,7 @@ func (self *pipelineControl) SendError(r interface{}) error {
 	if self.Cancelled() {
 		return errors.New("Cancelled response, unable to send")
 	}
-	self.Logger().Debug("SendError: ", r)
+	self.Log().Debug("SendError: ", r)
 	var err error
 	if reflect.TypeOf(r).String() != "error" {
 		err = r.(error)
@@ -84,7 +96,7 @@ func (self *pipelineControl) SendError(r interface{}) error {
 }
 
 func (self *pipelineControl) Cancel() {
-	self.Logger().Debug("Cancel pipe")
+	self.Log().Debug("Cancel pipe")
 	if self.Error() == nil {
 		self.cancel()
 	}
@@ -95,6 +107,6 @@ func (self *pipelineControl) Error() error {
 }
 
 func (self *pipelineControl) Cancelled() bool {
-	self.Logger().Debug("Pipe cancelled check = ", self.Error() != nil)
+	self.Log().Debug("Pipe cancelled check = ", self.Error() != nil)
 	return self.Error() != nil
 }

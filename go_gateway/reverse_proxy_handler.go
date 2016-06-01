@@ -9,7 +9,8 @@ import (
 	"path"
 	"net/http/httputil"
 	"github.com/30x/gozerian/pipeline"
-	"golang.org/x/net/context"
+	"strconv"
+	"sync/atomic"
 )
 
 type ReverseProxyHandler struct {
@@ -17,13 +18,18 @@ type ReverseProxyHandler struct {
 	Target   *url.URL
 }
 
+var reqCounter int64
+
 func (self ReverseProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+
+	reqId := string(strconv.FormatInt(atomic.AddInt64(&reqCounter, 1), 10))
+
 	req.URL.Host = self.Target.Host
 
-	writer := NewResponseWriter(w, context.Background())
+	writer := NewResponseWriter(w)
 
 	// call request handlers
-	self.Pipeline.RequestHandlerFunc()(writer, req)
+	self.Pipeline.RequestHandlerFunc(reqId)(writer, req)
 
 	// abort pipeline as needed
 	if writer.Control().Cancelled() {
@@ -42,7 +48,7 @@ func (self ReverseProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Reque
 		}
 	}
 
-	resHandler := self.Pipeline.ResponseHandlerFunc()
+	resHandler := self.Pipeline.ResponseHandlerFunc(reqId)
 	transport := &targetTransport{http.DefaultTransport, writer, req, resHandler}
 	targetProxy := &httputil.ReverseProxy{Director: director, Transport: transport}
 	targetProxy.ServeHTTP(writer, req)

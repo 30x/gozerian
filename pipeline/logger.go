@@ -1,5 +1,7 @@
 package pipeline
 
+import "github.com/Sirupsen/logrus"
+
 type Logger interface {
 
 	Debugf(format string, args ...interface{})
@@ -28,4 +30,7 @@ type Logger interface {
 	Errorln(args ...interface{})
 	Fatalln(args ...interface{})
 	Panicln(args ...interface{})
+
+	WithField(key string, value interface{}) *logrus.Entry
+	WithFields(fields logrus.Fields) *logrus.Entry
 }
