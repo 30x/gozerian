@@ -1,15 +1,16 @@
 package pipeline
 
 import (
-	"net/http"
-	"errors"
 	"fmt"
-	"github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
+	"net/http"
 	"strconv"
 	"sync/atomic"
+
+	"github.com/Sirupsen/logrus"
+	"golang.org/x/net/context"
 )
 
+// Pipe runs a series of request and response handlers - one created per request
 type Pipe interface {
 	ControlHolder
 	RequestHandlerFunc() http.HandlerFunc
@@ -18,41 +19,40 @@ type Pipe interface {
 
 var reqCounter int64
 
-// create per request - if reqId is empty, will create auto-create an ID to use
-func newPipe(reqId string, reqHands []http.HandlerFunc, resHands []ResponseHandlerFunc) Pipe {
+func newPipe(reqID string, reqHands []http.HandlerFunc, resHands []ResponseHandlerFunc) Pipe {
 
-	if reqId == "" {
-		reqId = string(strconv.FormatInt(atomic.AddInt64(&reqCounter, 1), 10))
+	if reqID == "" {
+		reqID = string(strconv.FormatInt(atomic.AddInt64(&reqCounter, 1), 10))
 	}
 
 	return &pipe{
-		reqId: reqId,
+		reqID:    reqID,
 		reqHands: reqHands,
 		resHands: resHands,
 	}
 }
 
 type pipe struct {
-	reqId      string
-	reqHands   []http.HandlerFunc
-	resHands   []ResponseHandlerFunc
-	control    PipelineControl
-	writer     ResponseWriter
+	reqID    string
+	reqHands []http.HandlerFunc
+	resHands []ResponseHandlerFunc
+	control  Control
+	writer   responseWriter
 }
 
-func (self *pipe) Control() PipelineControl {
-	return self.control
+func (p *pipe) Control() Control {
+	return p.control
 }
 
-func (self *pipe) RequestHandlerFunc() http.HandlerFunc {
+func (p *pipe) RequestHandlerFunc() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		writer := self.setWriter(w, r)
-		defer recoveryFunc(self.control)
+		writer := p.setWriter(w, r)
+		defer recoveryFunc(p.control)
 
-		for _, handler := range self.reqHands {
-			if self.control.Cancelled() {
+		for _, handler := range p.reqHands {
+			if p.control.Cancelled() {
 				break
 			}
 			handler(writer, r)
@@ -60,15 +60,15 @@ func (self *pipe) RequestHandlerFunc() http.HandlerFunc {
 	}
 }
 
-func (self *pipe) ResponseHandlerFunc() ResponseHandlerFunc {
+func (p *pipe) ResponseHandlerFunc() ResponseHandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request, res *http.Response) {
 
-		writer := self.setWriter(w, r)
-		defer recoveryFunc(self.control)
+		writer := p.setWriter(w, r)
+		defer recoveryFunc(p.control)
 
-		for _, handler := range self.resHands {
-			if self.control.Cancelled() {
+		for _, handler := range p.resHands {
+			if p.control.Cancelled() {
 				break
 			}
 			handler(writer, r, res)
@@ -77,30 +77,30 @@ func (self *pipe) ResponseHandlerFunc() ResponseHandlerFunc {
 	}
 }
 
-func (self *pipe) setWriter(w http.ResponseWriter, r *http.Request) ResponseWriter {
+func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) responseWriter {
 
-	writer, ok := w.(ResponseWriter)
-	if (!ok) {
+	writer, ok := w.(responseWriter)
+	if !ok {
 		config := GetConfig()
 
 		f := logrus.Fields{
-			"id": self.reqId,
+			"id":  p.reqID,
 			"uri": r.RequestURI,
 		}
 		log := GetConfig().Log().WithFields(f)
 
 		ctx, cancel := context.WithTimeout(context.Background(), config.Timeout())
-		self.control = NewPipelineControl(self.reqId, ctx, w, config, log, cancel)
+		p.control = NewControl(p.reqID, ctx, w, config, log, cancel)
 
-		writer = NewResponseWriter(w, self.control)
+		writer = newResponseWriter(w, p.control)
 	}
-	self.writer = writer
+	p.writer = writer
 	return writer
 }
 
-func recoveryFunc(pc PipelineControl) {
+func recoveryFunc(pc Control) {
 	if r := recover(); r != nil {
-		err := errors.New(fmt.Sprintf("%s", r))
+		err := fmt.Errorf("%s", r)
 		pc.Log().Warn("Panic Recovery Error: ", err)
 		pc.SendError(err)
 	}

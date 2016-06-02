@@ -16,7 +16,7 @@ type responseDumper struct {
 }
 
 func (self responseDumper) handleResponse(w http.ResponseWriter, r *http.Request, res *http.Response) {
-	id := w.(pipeline.ControlHolder).Control().RequestId()
+	id := w.(pipeline.ControlHolder).Control().RequestID()
 	if self.dumpBody {
 		res.Body = loggingReadCloser{res.Body, id + "<<"}
 	}

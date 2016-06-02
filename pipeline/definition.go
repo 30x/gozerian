@@ -1,16 +1,18 @@
 package pipeline
 
 import (
-	"net/url"
-	"net/http"
-	"io/ioutil"
 	"io"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 )
 
+// Definition of a pipe
 type Definition interface {
-	CreatePipe(reqId string) Pipe
+	CreatePipe(reqID string) Pipe
 }
 
+// DefinePipeFromURL returns a Pipe Definition as defined in the URL
 func DefinePipeFromURL(definitionURL url.URL) (Definition, error) {
 	res, err := http.Get(definitionURL.String())
 	if err != nil {
@@ -21,6 +23,7 @@ func DefinePipeFromURL(definitionURL url.URL) (Definition, error) {
 	return DefinePipeFromReader(res.Body)
 }
 
+// DefinePipeFromReader returns a Pipe Definition as defined in the Reader
 func DefinePipeFromReader(r io.Reader) (Definition, error) {
 	bytes, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -34,6 +37,7 @@ func DefinePipeFromReader(r io.Reader) (Definition, error) {
 	return DefinePipe(nil, nil)
 }
 
+// DefinePipe returns a Pipe Definition defined by the passed handlers
 func DefinePipe(reqHands []http.HandlerFunc, resHands []ResponseHandlerFunc) (Definition, error) {
 	return &definition{reqHands, resHands}, nil
 }
@@ -44,6 +48,6 @@ type definition struct {
 }
 
 // if reqId is nil, will create and use an internal id
-func (self *definition) CreatePipe(reqId string) Pipe {
-	return newPipe(reqId, self.reqHands, self.resHands)
+func (s *definition) CreatePipe(reqID string) Pipe {
+	return newPipe(reqID, s.reqHands, s.resHands)
 }

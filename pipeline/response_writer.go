@@ -4,36 +4,36 @@ import (
 	"net/http"
 )
 
-func NewResponseWriter(writer http.ResponseWriter, control PipelineControl) ResponseWriter {
-	return &responseWriter{writer, control}
+func newResponseWriter(writer http.ResponseWriter, control Control) responseWriter {
+	return &resWriter{writer, control}
 }
 
-type ResponseWriter interface {
+type responseWriter interface {
 	http.ResponseWriter
 	ControlHolder
 }
 
-type responseWriter struct {
+type resWriter struct {
 	writer  http.ResponseWriter
-	control PipelineControl
+	control Control
 }
 
-func (self *responseWriter) Header() http.Header {
-	return self.writer.Header()
+func (w *resWriter) Header() http.Header {
+	return w.writer.Header()
 }
 
-func (self *responseWriter) Write(bytes []byte) (int, error) {
-	self.control.Log().Debug("Write:", string(bytes))
-	self.control.Cancel()
-	return self.writer.Write(bytes)
+func (w *resWriter) Write(bytes []byte) (int, error) {
+	w.control.Log().Debug("Write:", string(bytes))
+	w.control.Cancel()
+	return w.writer.Write(bytes)
 }
 
-func (self *responseWriter) WriteHeader(status int) {
-	self.control.Log().Debug("WriteHeader:", status)
-	self.control.Cancel()
-	self.writer.WriteHeader(status)
+func (w *resWriter) WriteHeader(status int) {
+	w.control.Log().Debug("WriteHeader:", status)
+	w.control.Cancel()
+	w.writer.WriteHeader(status)
 }
 
-func (self *responseWriter) Control() PipelineControl {
-	return self.control
+func (w *resWriter) Control() Control {
+	return w.control
 }

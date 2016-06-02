@@ -12,7 +12,7 @@ import (
 
 type targetTransport struct {
 	http.RoundTripper
-	control    pipeline.PipelineControl
+	control    pipeline.Control
 	writer     http.ResponseWriter
 	origReq	   *http.Request
 	resHandler pipeline.ResponseHandlerFunc
