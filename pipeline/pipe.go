@@ -21,6 +21,7 @@ var reqCounter int64
 
 func newPipe(reqID string, reqHands []http.HandlerFunc, resHands []ResponseHandlerFunc) Pipe {
 
+	// provide a default (transient) implementation of an ID
 	if reqID == "" {
 		reqID = string(strconv.FormatInt(atomic.AddInt64(&reqCounter, 1), 10))
 	}
@@ -73,7 +74,6 @@ func (p *pipe) ResponseHandlerFunc() ResponseHandlerFunc {
 			}
 			handler(writer, r, res)
 		}
-
 	}
 }
 

@@ -4,7 +4,8 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
+	"gopkg.in/yaml.v2"
+	"fmt"
 )
 
 // Definition of a pipe
@@ -12,33 +13,41 @@ type Definition interface {
 	CreatePipe(reqID string) Pipe
 }
 
-// DefinePipeFromURL returns a Pipe Definition as defined in the URL
-func DefinePipeFromURL(definitionURL url.URL) (Definition, error) {
-	res, err := http.Get(definitionURL.String())
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	return DefinePipeFromReader(res.Body)
-}
-
 // DefinePipeFromReader returns a Pipe Definition as defined in the Reader
-func DefinePipeFromReader(r io.Reader) (Definition, error) {
+func DefinePipe(r io.Reader) (Definition, error) {
 	bytes, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
 
-	// todo: create handlers
-	if bytes != nil {
+	type FittingDef map[string]interface{}
+	var pipeConfig []FittingDef
+	err = yaml.Unmarshal(bytes, &pipeConfig)
+	if err != nil {
+		return nil, err
 	}
 
-	return DefinePipe(nil, nil)
+	// todo: validation of structures
+
+	var reqHands []http.HandlerFunc
+	for _, fittingDef := range pipeConfig {
+		if len(fittingDef) > 1 {
+			return nil, fmt.Errorf("bad structure")
+		}
+		for name, config := range fittingDef{
+			fitting := NewFitting(name, config)
+			handler := fitting.RequestHandlerFunc()
+			if handler != nil {
+				reqHands = append(reqHands, handler)
+			}
+		}
+	}
+
+	return NewDefinition(reqHands, nil)
 }
 
 // DefinePipe returns a Pipe Definition defined by the passed handlers
-func DefinePipe(reqHands []http.HandlerFunc, resHands []ResponseHandlerFunc) (Definition, error) {
+func NewDefinition(reqHands []http.HandlerFunc, resHands []ResponseHandlerFunc) (Definition, error) {
 	return &definition{reqHands, resHands}, nil
 }
 

@@ -18,7 +18,7 @@ func makeGateway(targetURL string, reqHands []http.HandlerFunc, resHands []Respo
 	resHands = append(resHands, ResponseDumper(false))
 
 	target, _:= url.Parse(targetURL)
-	pipeDef, err := DefinePipe(reqHands, resHands)
+	pipeDef, err := NewDefinition(reqHands, resHands)
 	if err != nil {
 		panic(err)
 	}

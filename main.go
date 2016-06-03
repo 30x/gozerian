@@ -33,7 +33,7 @@ func main() {
 		ResponseDumper(true),
 	}
 
-	pipeDef, err := DefinePipe(requestHandlers, responseHandlers)
+	pipeDef, err := NewDefinition(requestHandlers, responseHandlers)
 	if err != nil {
 		panic(err)
 	}
