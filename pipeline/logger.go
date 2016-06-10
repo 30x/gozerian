@@ -1,6 +1,9 @@
 package pipeline
 
-import "github.com/Sirupsen/logrus"
+import (
+	"github.com/Sirupsen/logrus"
+	"os"
+)
 
 // Logger represents the logging interface
 type Logger interface {
@@ -33,4 +36,25 @@ type Logger interface {
 
 	WithField(key string, value interface{}) *logrus.Entry
 	WithFields(fields logrus.Fields) *logrus.Entry
+}
+
+var logger Logger
+
+// todo: kinda lame, fix it
+
+func GetLogger() Logger {
+	if logger == nil {
+		GetConfig().GetString(ConfigLogLevel)
+		level, err := logrus.ParseLevel(GetConfig().GetString(ConfigLogLevel))
+		if err != nil {
+			level = logrus.InfoLevel
+		}
+		logger = &logrus.Logger{
+			Out:       os.Stderr,
+			Formatter: new(logrus.TextFormatter),
+			Hooks:     make(logrus.LevelHooks),
+			Level:     level,
+		}
+	}
+	return logger
 }

@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"net/http"
-	"log"
 	"net/http/httputil"
 	"io"
 	"github.com/30x/gozerian/pipeline"
+	"log"
 )
 
 
@@ -18,7 +18,9 @@ type requestDumper struct {
 }
 
 func (self requestDumper) handleRequest(w http.ResponseWriter, r *http.Request) {
-	id := w.(pipeline.ControlHolder).Control().RequestID()
+	control := w.(pipeline.ControlHolder).Control()
+	id := control.RequestID()
+	log := control.Log()
 	if self.dumpBody {
 		r.Body = loggingReadCloser{r.Body, id + ">>"}
 	}
