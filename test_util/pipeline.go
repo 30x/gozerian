@@ -349,6 +349,32 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 				body, _ := ioutil.ReadAll(res.Body)
 				Expect(string(body)).To(HavePrefix(errMsg))
 			})
+
+			It("should be able to pass flow variables between request handlers", func() {
+
+				// create the target
+				target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				}))
+				defer target.Close()
+
+				// create the gateway
+				requestHandlers := []http.HandlerFunc{
+					func(w http.ResponseWriter, r *http.Request) {
+						flow := w.(ControlHolder).Control().FlowData()
+						flow["XXX"] = "YYY"
+					},
+					func(w http.ResponseWriter, r *http.Request) {
+						flow := w.(ControlHolder).Control().FlowData()
+						Expect(flow["XXX"]).To(Equal("YYY"))
+					},
+				}
+				gateway := newGateway(target.URL, requestHandlers, noResponseHandlers)
+				defer gateway.Close()
+
+				// send the request
+				res, _ := http.Get(gateway.URL)
+				defer res.Body.Close()
+			})
 		})
 
 		Context("response handler", func() {
@@ -356,8 +382,6 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 			It("should be able to modify response status", func() {
 				// create the target
 				target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					// send response
-					w.WriteHeader(200)
 				}))
 				defer target.Close()
 
@@ -535,6 +559,30 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 				body, _ := ioutil.ReadAll(res.Body)
 				Expect(string(body)).To(HavePrefix(errMsg))
 			})
+
+			It("should be able to pass flow variables from request to response handlers", func() {
+				// create the target
+				target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				}))
+				defer target.Close()
+
+				// create the gateway
+				requestHandlers := []http.HandlerFunc{func(w http.ResponseWriter, r *http.Request) {
+						flow := w.(ControlHolder).Control().FlowData()
+						flow["XXX"] = "YYY"
+				}}
+				responseHandlers := []ResponseHandlerFunc{func(w http.ResponseWriter, r *http.Request, res *http.Response) {
+					flow := w.(ControlHolder).Control().FlowData()
+					Expect(flow["XXX"]).To(Equal("YYY"))
+				}}
+				gateway := newGateway(target.URL, requestHandlers, responseHandlers)
+				defer gateway.Close()
+
+				// send the request
+				res, _ := http.Get(gateway.URL)
+				defer res.Body.Close()
+			})
+
 		})
 	})
 }

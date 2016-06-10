@@ -15,7 +15,7 @@ type ControlHolder interface {
 }
 
 // ExtraData is just an open map for storing stuff
-type ExtraData map[interface{}]interface{}
+type FlowData map[string]interface{}
 
 // Control contains control and context for a Pipe instance
 type Control interface {
@@ -33,11 +33,7 @@ type Control interface {
 
 	Config() Config
 
-	UserData() ExtraData
-}
-
-type pipelineAdmin interface {
-	systemData() ExtraData
+	FlowData() FlowData
 }
 
 // NewControl creates a new Control
@@ -62,12 +58,11 @@ type control struct {
 	logger       Logger
 	cancel       context.CancelFunc
 	reqID        string
-	userData     ExtraData
-	systemData   ExtraData
+	flowData     FlowData
 }
 
-func (pc *control) UserData() ExtraData {
-	return pc.userData
+func (pc *control) FlowData() FlowData {
+	return pc.flowData
 }
 
 func (pc *control) RequestID() string {
