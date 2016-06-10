@@ -1,72 +1,44 @@
 package pipeline
 
 import (
-	"os"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
-// A Key for a Config
-type Key interface{}
-
-// A Value for a Config
-type Value interface{}
-
-// Config is the configuration for system
-type Config interface {
-	Get(k Key) Value
-	Timeout() time.Duration
-	Log() Logger
-}
-
-var conf Config
-
-// GetConfig retrieves the configuration
-func GetConfig() Config {
-	if conf == nil {
-		conf = NewDefaultConfig()
-	}
-	return conf
-}
-
-// Well-known Config keys
 const (
 	ConfigTimeout  = "timeout"
 	ConfigLogLevel = "logLevel"
 )
 
-// NewDefaultConfig creates a config
-func NewDefaultConfig() Config {
-	values := make(map[Key]Value)
+var config Config
 
-	values[ConfigTimeout] = 60000
-	values[ConfigLogLevel] = "debug"
+func init() {
+	v := viper.New()
+	config = v
 
-	return &config{values}
+	v.SetDefault(ConfigTimeout, "1m") // 1 minute
+	v.SetDefault(ConfigLogLevel, "debug")
 }
 
-type config struct {
-	values map[Key]Value
+// Config is the configuration for system
+type Config interface {
+	Get(key string) interface{}
+	GetBool(key string) bool
+	GetFloat64(key string) float64
+	GetInt(key string) int
+	GetString(key string) string
+	GetStringMap(key string) map[string]interface{}
+	GetStringMapString(key string) map[string]string
+	GetStringSlice(key string) []string
+	GetTime(key string) time.Time
+	GetDuration(key string) time.Duration
+	IsSet(key string) bool
+
+	UnmarshalKey(key string, rawVal interface{}) error
 }
 
-func (c *config) Get(k Key) Value {
-	return c.values[k]
-}
-
-func (c *config) Timeout() time.Duration {
-	timeout := c.values[ConfigTimeout].(int)
-	return time.Duration(timeout) * time.Millisecond
-}
-
-// todo: probably do this elsewhere?
-func (c *config) Log() Logger {
-	level, error := logrus.ParseLevel(c.values[ConfigLogLevel].(string))
-	if error != nil {
-		panic(error) // todo: handle error
-	}
-	logrus.SetLevel(level)
-	logrus.SetOutput(os.Stdout)
-	logrus.SetFormatter(&logrus.TextFormatter{})
-	return logrus.New()
+// GetConfig retrieves the configuration
+func GetConfig() Config {
+	return config
 }

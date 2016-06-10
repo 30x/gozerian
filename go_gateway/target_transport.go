@@ -80,9 +80,8 @@ func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Res
 
 	// set timeout timer
 	// todo: can we get the elapsed time left instead?
-	config := self.control.Config()
-	timeout := config.Timeout()
-	timer := time.AfterFunc(config.Timeout(), func() { close(done) })
+	timeout := self.control.Config().GetDuration(pipeline.ConfigTimeout)
+	timer := time.AfterFunc(timeout, func() { close(done) })
 
 	// todo: pipe data through upgraded stream handlers!
 

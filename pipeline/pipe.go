@@ -81,15 +81,13 @@ func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) responseWriter 
 
 	writer, ok := w.(responseWriter)
 	if !ok {
-		config := GetConfig()
-
 		f := logrus.Fields{
 			"id":  p.reqID,
 			"uri": r.RequestURI,
 		}
-		log := GetConfig().Log().WithFields(f)
+		log := GetLogger().WithFields(f)
 
-		ctx, cancel := context.WithTimeout(context.Background(), config.Timeout())
+		ctx, cancel := context.WithTimeout(context.Background(), GetConfig().GetDuration(ConfigTimeout))
 		p.control = NewControl(p.reqID, ctx, w, config, log, cancel)
 
 		writer = newResponseWriter(w, p.control)
