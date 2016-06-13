@@ -1,11 +1,10 @@
-package handlers
+package test_util
 
 import (
 	"net/http"
 	"net/http/httputil"
 	"io"
 	"github.com/30x/gozerian/pipeline"
-	"log"
 )
 
 
@@ -22,7 +21,7 @@ func (self requestDumper) handleRequest(w http.ResponseWriter, r *http.Request) 
 	id := control.RequestID()
 	log := control.Log()
 	if self.dumpBody {
-		r.Body = loggingReadCloser{r.Body, id + ">>"}
+		r.Body = loggingReadCloser{r.Body, log, id + ">>"}
 	}
 	log.Printf("======================== request %s ========================", id)
 	dump, err := httputil.DumpRequest(r, false)
@@ -35,14 +34,15 @@ func (self requestDumper) handleRequest(w http.ResponseWriter, r *http.Request) 
 
 type loggingReadCloser struct {
 	io.ReadCloser
+	log       pipeline.Logger
 	indicator string
 }
 
-func (self loggingReadCloser) Read(buf []byte) (n int, err error) {
+func (l loggingReadCloser) Read(buf []byte) (n int, err error) {
 
-	n, err = self.ReadCloser.Read(buf)
+	n, err = l.ReadCloser.Read(buf)
 	if n > 0 {
-		log.Printf("%s%q\n", self.indicator, string(buf[:n]))
+		l.log.Printf("%s%q\n", l.indicator, string(buf[:n]))
 	}
 	return n, err
 }

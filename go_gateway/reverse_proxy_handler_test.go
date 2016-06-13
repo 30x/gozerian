@@ -2,7 +2,6 @@ package go_gateway_test
 
 import (
 	. "github.com/30x/gozerian/pipeline"
-	. "github.com/30x/gozerian/handlers"
 	"github.com/30x/gozerian/go_gateway"
 	"github.com/30x/gozerian/test_util"
 	"net/http/httptest"
@@ -14,8 +13,8 @@ import (
 
 func makeGateway(targetURL string, reqHands []http.HandlerFunc, resHands []ResponseHandlerFunc) *httptest.Server {
 
-	reqHands = append(reqHands, RequestDumper(true))
-	resHands = append(resHands, ResponseDumper(true))
+	reqHands = append(reqHands, test_util.RequestDumper(true))
+	resHands = append(resHands, test_util.ResponseDumper(true))
 
 	target, _:= url.Parse(targetURL)
 	pipeDef, err := NewDefinition(reqHands, resHands)

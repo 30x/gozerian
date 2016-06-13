@@ -1,4 +1,4 @@
-package handlers
+package test_util
 
 import (
 	"net/http"
@@ -19,7 +19,7 @@ func (self responseDumper) handleResponse(w http.ResponseWriter, r *http.Request
 	id := control.RequestID()
 	log := control.Log()
 	if self.dumpBody {
-		res.Body = loggingReadCloser{res.Body, id + "<<"}
+		res.Body = loggingReadCloser{res.Body, log, id + "<<"}
 	}
 	log.Printf("======================== response %s ========================", id)
 	dump, err := httputil.DumpResponse(res, false)
