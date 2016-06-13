@@ -17,9 +17,9 @@ var _ = Describe("Definition", func() {
 	It("should load from a simple yaml struct", func() {
 
 		// write a die & fitting (in another module)
-		testDie := func(config interface{}) Fitting {
+		testDie := func(id string, config interface{}) Fitting {
 			fmt.Printf("test_fitting created: %v\n", config)
-			return &test_fitting{config}
+			return &test_fitting{id, config}
 		}
 
 		// register the fitting die
@@ -29,8 +29,12 @@ var _ = Describe("Definition", func() {
 
 		// define the pipe via YAML (loaded from URI)
 		pipeYaml := `
-- test_die:
-    test_config: "3.14"
+request:
+  - test_die:
+      test_config: "3.14"
+response:
+  - test_die:
+      test_config: "3.15"
 `
 		yamlReader := strings.NewReader(pipeYaml)
 
@@ -38,7 +42,7 @@ var _ = Describe("Definition", func() {
 		pipeDef, err := DefinePipe(yamlReader)
 		Expect(err).NotTo(HaveOccurred())
 
-		pipe := pipeDef.CreatePipe("test_pipe")
+		pipe := pipeDef.CreatePipe("test_req_pipe")
 
 		rec := httptest.NewRecorder()
 		req, err := http.NewRequest("GET", "URI", nil)
@@ -50,16 +54,37 @@ var _ = Describe("Definition", func() {
 
 		val := string(b)
 		Expect(val).To(Equal("3.14"))
+
+
+		pipe = pipeDef.CreatePipe("test_res_pipe")
+
+		rec = httptest.NewRecorder()
+		req, err = http.NewRequest("GET", "URI", nil)
+		Expect(err).NotTo(HaveOccurred())
+
+		pipe.ResponseHandlerFunc()(rec, req, nil)
+		b, err = ioutil.ReadAll(rec.Body)
+		Expect(err).NotTo(HaveOccurred())
+
+		val = string(b)
+		Expect(val).To(Equal("3.15"))
+
 	})
 })
 
 type test_fitting struct {
+	id     string
 	config interface{}
 }
 
 func (f *test_fitting) getConfigVal(val string) interface{} {
 	return f.config.(map[interface{}]interface{})[val]
 }
+
+func (f *test_fitting) ID() string {
+	return f.id
+}
+
 func (f *test_fitting) RequestHandlerFunc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		val := f.getConfigVal("test_config").(string)
@@ -67,6 +92,7 @@ func (f *test_fitting) RequestHandlerFunc() http.HandlerFunc {
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
+
 func (f *test_fitting) ResponseHandlerFunc() ResponseHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, res *http.Response) {
 		val := f.getConfigVal("test_config").(string)

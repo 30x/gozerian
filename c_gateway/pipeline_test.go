@@ -16,11 +16,21 @@ func makeGateway(targetURL string, reqHands []http.HandlerFunc, resHands []Respo
 	reqHands = append(reqHands, test_util.RequestDumper(false))
 	resHands = append(resHands, test_util.ResponseDumper(false))
 
-	target, _:= url.Parse(targetURL)
-	pipeDef, err := NewDefinition(reqHands, resHands)
+	var reqFittings []Fitting
+	for _, h := range reqHands {
+		reqFittings = append(reqFittings, NewFittingFromHandlers("test", h, nil))
+	}
+
+	var resFittings []Fitting
+	for _, h := range resHands {
+		resFittings = append(resFittings, NewFittingFromHandlers("test", nil, h))
+	}
+
+	pipeDef, err := NewDefinition(reqFittings, resFittings)
 	if err != nil {
 		panic(err)
 	}
+	target, _:= url.Parse(targetURL)
 	proxyHandler := &go_gateway.ReverseProxyHandler{pipeDef, target}
 
 	return httptest.NewServer(proxyHandler)

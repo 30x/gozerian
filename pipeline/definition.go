@@ -3,7 +3,6 @@ package pipeline
 import (
 	"io"
 	"io/ioutil"
-	"net/http"
 	"gopkg.in/yaml.v2"
 	"fmt"
 )
@@ -21,7 +20,9 @@ func DefinePipe(r io.Reader) (Definition, error) {
 	}
 
 	type FittingDef map[string]interface{}
-	var pipeConfig []FittingDef
+	type PipeDef map[string][]FittingDef
+
+	var pipeConfig PipeDef
 	err = yaml.Unmarshal(bytes, &pipeConfig)
 	if err != nil {
 		return nil, err
@@ -29,34 +30,54 @@ func DefinePipe(r io.Reader) (Definition, error) {
 
 	// todo: validation of structures
 
-	var reqHands []http.HandlerFunc
-	for _, fittingDef := range pipeConfig {
-		if len(fittingDef) > 1 {
-			return nil, fmt.Errorf("bad structure")
-		}
-		for name, config := range fittingDef{
-			fitting := NewFitting(name, config)
-			handler := fitting.RequestHandlerFunc()
-			if handler != nil {
-				reqHands = append(reqHands, handler)
+	var reqFittings []Fitting
+	reqDefs := pipeConfig["request"]
+	if reqDefs != nil {
+		for _, fittingDef := range reqDefs {
+			if len(fittingDef) > 1 {
+				return nil, fmt.Errorf("bad structure")
+			}
+			for name, config := range fittingDef{
+				fitting := NewFitting(name, config)
+				handler := fitting.RequestHandlerFunc()
+				if handler != nil {
+					reqFittings = append(reqFittings, fitting)
+				}
 			}
 		}
 	}
 
-	return NewDefinition(reqHands, nil)
+	var resFittings []Fitting
+	resDefs := pipeConfig["response"]
+	if resDefs != nil {
+		for _, fittingDef := range resDefs {
+			if len(fittingDef) > 1 {
+				return nil, fmt.Errorf("bad structure")
+			}
+			for name, config := range fittingDef{
+				fitting := NewFitting(name, config)
+				handler := fitting.ResponseHandlerFunc()
+				if handler != nil {
+					resFittings = append(resFittings, fitting)
+				}
+			}
+		}
+	}
+
+	return NewDefinition(reqFittings, resFittings)
 }
 
 // DefinePipe returns a Pipe Definition defined by the passed handlers
-func NewDefinition(reqHands []http.HandlerFunc, resHands []ResponseHandlerFunc) (Definition, error) {
-	return &definition{reqHands, resHands}, nil
+func NewDefinition(reqFittings []Fitting, resFittings []Fitting) (Definition, error) {
+	return &definition{reqFittings, resFittings}, nil
 }
 
 type definition struct {
-	reqHands []http.HandlerFunc
-	resHands []ResponseHandlerFunc
+	reqFittings []Fitting
+	resFittings []Fitting
 }
 
 // if reqId is nil, will create and use an internal id
 func (s *definition) CreatePipe(reqID string) Pipe {
-	return newPipe(reqID, s.reqHands, s.resHands)
+	return newPipe(reqID, s.reqFittings, s.resFittings)
 }

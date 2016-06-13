@@ -19,7 +19,7 @@ type Pipe interface {
 
 var reqCounter int64
 
-func newPipe(reqID string, reqHands []http.HandlerFunc, resHands []ResponseHandlerFunc) Pipe {
+func newPipe(reqID string, reqFittings []Fitting, resFittings []Fitting) Pipe {
 
 	// provide a default (transient) implementation of an ID
 	if reqID == "" {
@@ -28,15 +28,15 @@ func newPipe(reqID string, reqHands []http.HandlerFunc, resHands []ResponseHandl
 
 	return &pipe{
 		reqID:    reqID,
-		reqHands: reqHands,
-		resHands: resHands,
+		reqFittings: reqFittings,
+		resFittings: resFittings,
 	}
 }
 
 type pipe struct {
 	reqID    string
-	reqHands []http.HandlerFunc
-	resHands []ResponseHandlerFunc
+	reqFittings []Fitting
+	resFittings []Fitting
 	control  Control
 	writer   responseWriter
 }
@@ -52,11 +52,13 @@ func (p *pipe) RequestHandlerFunc() http.HandlerFunc {
 		writer := p.setWriter(w, r)
 		defer recoveryFunc(p.control)
 
-		for _, handler := range p.reqHands {
+		for _, fitting := range p.reqFittings {
 			if p.control.Cancelled() {
 				break
 			}
-			handler(writer, r)
+			p.control.Log().Debugf("Enter req handler %s", fitting.ID())
+			fitting.RequestHandlerFunc()(writer, r)
+			p.control.Log().Debugf("Exit  req handler %s", fitting.ID())
 		}
 	}
 }
@@ -68,11 +70,13 @@ func (p *pipe) ResponseHandlerFunc() ResponseHandlerFunc {
 		writer := p.setWriter(w, r)
 		defer recoveryFunc(p.control)
 
-		for _, handler := range p.resHands {
+		for _, fitting := range p.resFittings {
 			if p.control.Cancelled() {
 				break
 			}
-			handler(writer, r, res)
+			p.control.Log().Debugf("Enter res handler %s", fitting.ID())
+			fitting.ResponseHandlerFunc()(writer, r, res)
+			p.control.Log().Debugf("Enter res handler %s", fitting.ID())
 		}
 	}
 }
@@ -82,7 +86,7 @@ func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) responseWriter 
 	writer, ok := w.(responseWriter)
 	if !ok {
 		f := logrus.Fields{
-			"id":  p.reqID,
+			"reqID":  p.reqID,
 			"uri": r.RequestURI,
 		}
 		log := GetLogger().WithFields(f)

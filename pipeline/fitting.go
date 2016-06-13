@@ -9,7 +9,7 @@ import (
 type Dies map[string]Die
 
 // Die is a factory to create Fittings
-type Die func(config interface{}) Fitting
+type Die func(dieID string, config interface{}) Fitting
 
 var dies Dies
 var diesMutex sync.RWMutex
@@ -22,6 +22,7 @@ type ResponseHandlerFactory func(interface{}) ResponseHandlerFunc
 
 // Fitting is a function in a Pipe
 type Fitting interface {
+	ID() string
 	RequestHandlerFunc() http.HandlerFunc
 	ResponseHandlerFunc() ResponseHandlerFunc
 }
@@ -52,22 +53,28 @@ func RegisterDies(d Dies) {
 func NewFitting(dieID string, config interface{}) Fitting {
 	diesMutex.RLock()
 	defer diesMutex.RUnlock()
-	return dies[dieID](config)
+	return dies[dieID](dieID, config)
 }
 
 // NewFittingFromHandlers creates a fitting from a request and respose handler
-func NewFittingFromHandlers(reqHandler http.HandlerFunc, resHandler ResponseHandlerFunc) Fitting {
-	return &fitting{reqHandler, resHandler}
+func NewFittingFromHandlers(id string, reqHandler http.HandlerFunc, resHandler ResponseHandlerFunc) Fitting {
+	return &fitting{id, reqHandler, resHandler}
 }
 
 type fitting struct {
+	id         string
 	reqHandler http.HandlerFunc
 	resHandler ResponseHandlerFunc
+}
+
+func (f *fitting) ID() string {
+	return f.id
 }
 
 func (f *fitting) RequestHandlerFunc() http.HandlerFunc {
 	return f.reqHandler
 }
+
 func (f *fitting) ResponseHandlerFunc() ResponseHandlerFunc {
 	return f.resHandler
 }
