@@ -18,25 +18,26 @@ type targetTransport struct {
 	resHandler pipeline.ResponseHandlerFunc
 }
 
-func (self *targetTransport) RoundTrip(req *http.Request) (res *http.Response, err error) {
+func (tt *targetTransport) RoundTrip(req *http.Request) (res *http.Response, err error) {
 
 	// upgrade to hijacked connection
-	upgrade := self.origReq.Header.Get("Connection") == "Upgrade"
+	upgrade := tt.origReq.Header.Get("Connection") == "Upgrade"
 	if upgrade {
-		return self.upgradedRoundTrip(req)
+		return tt.upgradedRoundTrip(req)
 	}
 
 	// call target
-	res, err = self.RoundTripper.RoundTrip(req)
+	res, err = tt.RoundTripper.RoundTrip(req)
 	if err != nil {
-		self.control.SendError(err)
-		return nil, err
+		tt.control.SendError(err)
 	}
 
 	// run response handlers
-	self.resHandler(self.writer, self.origReq, res)
+	if !tt.control.Cancelled() {
+		tt.resHandler(tt.writer, tt.origReq, res)
+	}
 
-	return res, self.control.Error()
+	return res, tt.control.Error()
 }
 
 func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Response, err error) {

@@ -15,6 +15,7 @@ type Pipe interface {
 	ControlHolder
 	RequestHandlerFunc() http.HandlerFunc
 	ResponseHandlerFunc() ResponseHandlerFunc
+	Writer() responseWriter
 }
 
 var reqCounter int64
@@ -58,7 +59,7 @@ func (p *pipe) RequestHandlerFunc() http.HandlerFunc {
 			}
 			p.control.Log().Debugf("Enter req handler %s", fitting.ID())
 			fitting.RequestHandlerFunc()(writer, r)
-			p.control.Log().Debugf("Exit  req handler %s", fitting.ID())
+			p.control.Log().Debugf("Exit req handler %s", fitting.ID())
 		}
 	}
 }
@@ -76,12 +77,16 @@ func (p *pipe) ResponseHandlerFunc() ResponseHandlerFunc {
 			}
 			p.control.Log().Debugf("Enter res handler %s", fitting.ID())
 			fitting.ResponseHandlerFunc()(writer, r, res)
-			p.control.Log().Debugf("Enter res handler %s", fitting.ID())
+			p.control.Log().Debugf("Exit res handler %s", fitting.ID())
 		}
 	}
 }
 
 func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) responseWriter {
+
+	if p.writer != nil {
+		return p.writer
+	}
 
 	writer, ok := w.(responseWriter)
 	if !ok {
@@ -92,12 +97,26 @@ func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) responseWriter 
 		log := GetLogger().WithFields(f)
 
 		ctx, cancel := context.WithTimeout(context.Background(), GetConfig().GetDuration(ConfigTimeout))
-		p.control = NewControl(p.reqID, ctx, w, config, log, cancel)
+		ctl := &control{
+			reqID: p.reqID,
+			ctx: ctx,
+			config: config,
+			logger: log,
+			cancel: cancel,
+		}
 
-		writer = newResponseWriter(w, p.control)
+		// todo: this is a weird do-si-do circular reference. clean up?
+		writer = newResponseWriter(w, ctl)
+		ctl.writer = writer
+
+		p.control = ctl
 	}
 	p.writer = writer
 	return writer
+}
+
+func (p *pipe) Writer() responseWriter {
+	return p.writer
 }
 
 func recoveryFunc(pc Control) {

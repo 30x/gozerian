@@ -36,20 +36,6 @@ type Control interface {
 	FlowData() FlowData
 }
 
-// NewControl creates a new Control
-func NewControl(reqID string, ctx context.Context, w http.ResponseWriter,
-	config Config, log Logger, cancel context.CancelFunc) Control {
-	return &control{
-		ctx:          ctx,
-		writer:       w,
-		errorHandler: DefaultErrorHanderFunc,
-		config:       config,
-		logger:       log,
-		cancel:       cancel,
-		reqID:        reqID,
-	}
-}
-
 type control struct {
 	ctx          context.Context
 	writer       http.ResponseWriter
@@ -100,12 +86,7 @@ func (pc *control) SendError(r interface{}) error {
 	} else {
 		err = fmt.Errorf("%s", r)
 	}
-	writeErr := pc.ErrorHandler()(pc.writer, err)
-	if writeErr != nil {
-		return writeErr
-	}
-	pc.Cancel()
-	return nil
+	return pc.ErrorHandler()(pc.writer, err)
 }
 
 func (pc *control) Cancel() {
@@ -120,6 +101,5 @@ func (pc *control) Error() error {
 }
 
 func (pc *control) Cancelled() bool {
-	pc.Log().Debug("Pipe cancelled check = ", pc.Error() != nil)
 	return pc.Error() != nil
 }

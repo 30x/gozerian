@@ -23,13 +23,13 @@ func (w *resWriter) Header() http.Header {
 }
 
 func (w *resWriter) Write(bytes []byte) (int, error) {
-	w.control.Log().Debug("Write:", string(bytes))
+	w.control.Log().Debugf("Write: %s", string(bytes))
 	w.control.Cancel()
 	return w.writer.Write(bytes)
 }
 
 func (w *resWriter) WriteHeader(status int) {
-	w.control.Log().Debug("WriteHeader:", status)
+	w.control.Log().Debugf("WriteHeader: %d", status)
 	w.control.Cancel()
 	w.writer.WriteHeader(status)
 }
