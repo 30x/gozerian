@@ -11,22 +11,32 @@ import (
 
 // Test framework: http://onsi.github.io/ginkgo/
 
+func init() {
+	RegisterDie("dump", test_util.CreateDumpFitting)
+}
+
 func makeGateway(targetURL string, reqHands []http.HandlerFunc, resHands []ResponseHandlerFunc) *httptest.Server {
 
-	reqHands = append(reqHands, test_util.RequestDumper(true))
-	resHands = append(resHands, test_util.ResponseDumper(true))
+	dumpConfig := make(map[interface{}]interface{})
+	dumpConfig["dumpBody"] = false
+	dumpFitting, err := NewFitting("dump", dumpConfig)
+	if err != nil {
+		panic(err)
+	}
 
-	var reqFittings []Fitting
+	var reqFittings []FittingWithID
+	reqFittings = append(reqFittings, dumpFitting)
 	for _, h := range reqHands {
-		reqFittings = append(reqFittings, NewFittingFromHandlers("test", h, nil))
+		reqFittings = append(reqFittings, test_util.NewFittingFromHandlers("test", h, nil))
 	}
 
-	var resFittings []Fitting
+	var resFittings []FittingWithID
+	resFittings = append(resFittings, dumpFitting)
 	for _, h := range resHands {
-		resFittings = append(resFittings, NewFittingFromHandlers("test", nil, h))
+		resFittings = append(resFittings, test_util.NewFittingFromHandlers("test", nil, h))
 	}
 
-	pipeDef, err := NewDefinition(reqFittings, resFittings)
+	pipeDef := NewDefinition(reqFittings, resFittings)
 	if err != nil {
 		panic(err)
 	}

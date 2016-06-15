@@ -17,9 +17,9 @@ var _ = Describe("Definition", func() {
 	It("should load from a simple yaml struct", func() {
 
 		// write a die & fitting (in another module)
-		testDie := func(id string, config interface{}) Fitting {
+		testDie := func(config interface{}) (Fitting, error) {
 			fmt.Printf("test_fitting created: %v\n", config)
-			return &test_fitting{id, config}
+			return &test_fitting{config}, nil
 		}
 
 		// register the fitting die
@@ -73,16 +73,11 @@ response:
 })
 
 type test_fitting struct {
-	id     string
 	config interface{}
 }
 
 func (f *test_fitting) getConfigVal(val string) interface{} {
 	return f.config.(map[interface{}]interface{})[val]
-}
-
-func (f *test_fitting) ID() string {
-	return f.id
 }
 
 func (f *test_fitting) RequestHandlerFunc() http.HandlerFunc {

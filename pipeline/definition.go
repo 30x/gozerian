@@ -30,15 +30,15 @@ func DefinePipe(r io.Reader) (Definition, error) {
 
 	// todo: validation of structures
 
-	var reqFittings []Fitting
+	var reqFittings []FittingWithID
 	reqDefs := pipeConfig["request"]
 	if reqDefs != nil {
 		for _, fittingDef := range reqDefs {
 			if len(fittingDef) > 1 {
 				return nil, fmt.Errorf("bad structure")
 			}
-			for name, config := range fittingDef{
-				fitting, err := NewFitting(name, config)
+			for id, config := range fittingDef{
+				fitting, err := NewFitting(id, config)
 				if err != nil {
 					return nil, err
 				}
@@ -50,15 +50,15 @@ func DefinePipe(r io.Reader) (Definition, error) {
 		}
 	}
 
-	var resFittings []Fitting
+	var resFittings []FittingWithID
 	resDefs := pipeConfig["response"]
 	if resDefs != nil {
 		for _, fittingDef := range resDefs {
 			if len(fittingDef) > 1 {
 				return nil, fmt.Errorf("bad structure")
 			}
-			for name, config := range fittingDef{
-				fitting, err := NewFitting(name, config)
+			for id, config := range fittingDef{
+				fitting, err := NewFitting(id, config)
 				if err != nil {
 					return nil, err
 				}
@@ -74,16 +74,16 @@ func DefinePipe(r io.Reader) (Definition, error) {
 }
 
 // DefinePipe returns a Pipe Definition defined by the passed handlers
-func NewDefinition(reqFittings []Fitting, resFittings []Fitting) Definition {
+func NewDefinition(reqFittings []FittingWithID, resFittings []FittingWithID) Definition {
 	return &definition{reqFittings, resFittings}
 }
 
 type definition struct {
-	reqFittings []Fitting
-	resFittings []Fitting
+	reqFittings []FittingWithID
+	resFittings []FittingWithID
 }
 
 // if reqId is nil, will create and use an internal id
-func (s *definition) CreatePipe(reqID string) Pipe {
-	return newPipe(reqID, s.reqFittings, s.resFittings)
+func (d *definition) CreatePipe(reqID string) Pipe {
+	return newPipe(reqID, d.reqFittings, d.resFittings)
 }

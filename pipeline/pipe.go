@@ -20,7 +20,7 @@ type Pipe interface {
 
 var reqCounter int64
 
-func newPipe(reqID string, reqFittings []Fitting, resFittings []Fitting) Pipe {
+func newPipe(reqID string, reqFittings []FittingWithID, resFittings []FittingWithID) Pipe {
 
 	// provide a default (transient) implementation of an ID
 	if reqID == "" {
@@ -36,8 +36,8 @@ func newPipe(reqID string, reqFittings []Fitting, resFittings []Fitting) Pipe {
 
 type pipe struct {
 	reqID    string
-	reqFittings []Fitting
-	resFittings []Fitting
+	reqFittings []FittingWithID
+	resFittings []FittingWithID
 	control  Control
 	writer   responseWriter
 }
