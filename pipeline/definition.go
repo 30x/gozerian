@@ -12,7 +12,7 @@ type Definition interface {
 	CreatePipe(reqID string) Pipe
 }
 
-// DefinePipeFromReader returns a Pipe Definition as defined in the Reader
+// DefinePipeFromReader returns a Pipe Definition as defined in the yaml Reader
 func DefinePipe(r io.Reader) (Definition, error) {
 	bytes, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -38,7 +38,10 @@ func DefinePipe(r io.Reader) (Definition, error) {
 				return nil, fmt.Errorf("bad structure")
 			}
 			for name, config := range fittingDef{
-				fitting := NewFitting(name, config)
+				fitting, err := NewFitting(name, config)
+				if err != nil {
+					return nil, err
+				}
 				handler := fitting.RequestHandlerFunc()
 				if handler != nil {
 					reqFittings = append(reqFittings, fitting)
@@ -55,7 +58,10 @@ func DefinePipe(r io.Reader) (Definition, error) {
 				return nil, fmt.Errorf("bad structure")
 			}
 			for name, config := range fittingDef{
-				fitting := NewFitting(name, config)
+				fitting, err := NewFitting(name, config)
+				if err != nil {
+					return nil, err
+				}
 				handler := fitting.ResponseHandlerFunc()
 				if handler != nil {
 					resFittings = append(resFittings, fitting)
@@ -64,12 +70,12 @@ func DefinePipe(r io.Reader) (Definition, error) {
 		}
 	}
 
-	return NewDefinition(reqFittings, resFittings)
+	return NewDefinition(reqFittings, resFittings), nil
 }
 
 // DefinePipe returns a Pipe Definition defined by the passed handlers
-func NewDefinition(reqFittings []Fitting, resFittings []Fitting) (Definition, error) {
-	return &definition{reqFittings, resFittings}, nil
+func NewDefinition(reqFittings []Fitting, resFittings []Fitting) Definition {
+	return &definition{reqFittings, resFittings}
 }
 
 type definition struct {

@@ -9,7 +9,7 @@ import (
 type Dies map[string]Die
 
 // Die is a factory to create Fittings
-type Die func(dieID string, config interface{}) Fitting
+type Die func(dieID string, config interface{}) (Fitting, error)
 
 var dies Dies
 var diesMutex sync.RWMutex
@@ -50,7 +50,7 @@ func RegisterDies(d Dies) {
 }
 
 // NewFitting creates a fitting from a registered Die
-func NewFitting(dieID string, config interface{}) Fitting {
+func NewFitting(dieID string, config interface{}) (Fitting, error) {
 	diesMutex.RLock()
 	defer diesMutex.RUnlock()
 	return dies[dieID](dieID, config)
