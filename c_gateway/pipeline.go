@@ -6,7 +6,19 @@ import (
 	"net/url"
 )
 
-// external interface for gozerian-c
+/*
+Note: Register Dies for pipeline before calling ListenAndServe.
+
+Example of expected YAML at URL:
+
+    request:                # request pipeline
+    - dump:                 # name of plugin
+        dumpBody: true      # plugin-specific configuration
+    response:               # response pipeline
+    - dump:                 # name of plugin
+        dumpBody: true      # plugin-specific configuration
+ */
+
 func DefinePipe(configUrl *url.URL) (pipeline.Definition, error) {
 
 	res, err := http.Get(configUrl.String())
