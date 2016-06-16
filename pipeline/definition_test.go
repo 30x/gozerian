@@ -23,7 +23,7 @@ var _ = Describe("Definition", func() {
 		}
 
 		// register the fitting die
-		RegisterDies(Dies{
+		RegisterDies(map[string]Die{
 			"test_die": testDie,
 		})
 
