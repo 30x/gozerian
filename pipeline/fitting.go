@@ -33,7 +33,7 @@ func RegisterDie(id string, die Die) {
 	diesMutex.Lock()
 	defer diesMutex.Unlock()
 	if dies == nil {
-		dies = make(Dies)
+		dies = make(map[string]Die)
 	}
 	dies[id] = die
 }
@@ -43,7 +43,7 @@ func RegisterDies(m map[string]Die) {
 	diesMutex.Lock()
 	defer diesMutex.Unlock()
 	if dies == nil {
-		dies = make(Dies)
+		dies = make(map[string]Die)
 	}
 	for id, die := range m {
 		dies[id] = die
