@@ -11,18 +11,18 @@ const (
 	ConfigLogLevel = "logLevel"
 )
 
-var config Config
+var conf config
 
 func init() {
 	v := viper.New()
-	config = v
+	conf = v
 
 	v.SetDefault(ConfigTimeout, "1m") // 1 minute
 	v.SetDefault(ConfigLogLevel, "debug")
 }
 
 // Config is the configuration for system
-type Config interface {
+type config interface {
 	Get(key string) interface{}
 	GetBool(key string) bool
 	GetFloat64(key string) float64
@@ -39,6 +39,6 @@ type Config interface {
 }
 
 // GetConfig retrieves the configuration
-func GetConfig() Config {
-	return config
+func getConfig() config {
+	return conf
 }

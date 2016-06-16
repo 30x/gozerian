@@ -15,7 +15,6 @@ type Pipe interface {
 	ControlHolder
 	RequestHandlerFunc() http.HandlerFunc
 	ResponseHandlerFunc() ResponseHandlerFunc
-	Writer() responseWriter
 }
 
 var reqCounter int64
@@ -35,15 +34,14 @@ func newPipe(reqID string, reqFittings []FittingWithID, resFittings []FittingWit
 }
 
 type pipe struct {
-	reqID    string
+	reqID       string
 	reqFittings []FittingWithID
 	resFittings []FittingWithID
-	control  Control
-	writer   responseWriter
+	ctrl        *control
 }
 
 func (p *pipe) Control() Control {
-	return p.control
+	return p.ctrl
 }
 
 func (p *pipe) RequestHandlerFunc() http.HandlerFunc {
@@ -51,15 +49,15 @@ func (p *pipe) RequestHandlerFunc() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		writer := p.setWriter(w, r)
-		defer recoveryFunc(p.control)
+		defer recoveryFunc(p.ctrl)
 
 		for _, fitting := range p.reqFittings {
-			if p.control.Cancelled() {
+			if p.ctrl.Cancelled() {
 				break
 			}
-			p.control.Log().Debugf("Enter req handler %s", fitting.ID())
+			p.ctrl.Log().Debugf("Enter req handler %s", fitting.ID())
 			fitting.RequestHandlerFunc()(writer, r)
-			p.control.Log().Debugf("Exit req handler %s", fitting.ID())
+			p.ctrl.Log().Debugf("Exit req handler %s", fitting.ID())
 		}
 	}
 }
@@ -69,23 +67,23 @@ func (p *pipe) ResponseHandlerFunc() ResponseHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request, res *http.Response) {
 
 		writer := p.setWriter(w, r)
-		defer recoveryFunc(p.control)
+		defer recoveryFunc(p.ctrl)
 
 		for _, fitting := range p.resFittings {
-			if p.control.Cancelled() {
+			if p.ctrl.Cancelled() {
 				break
 			}
-			p.control.Log().Debugf("Enter res handler %s", fitting.ID())
+			p.ctrl.Log().Debugf("Enter res handler %s", fitting.ID())
 			fitting.ResponseHandlerFunc()(writer, r, res)
-			p.control.Log().Debugf("Exit res handler %s", fitting.ID())
+			p.ctrl.Log().Debugf("Exit res handler %s", fitting.ID())
 		}
 	}
 }
 
-func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) responseWriter {
+func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) http.ResponseWriter {
 
-	if p.writer != nil {
-		return p.writer
+	if p.ctrl != nil && p.ctrl.Writer() != nil {
+		return p.ctrl.Writer()
 	}
 
 	writer, ok := w.(responseWriter)
@@ -94,13 +92,13 @@ func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) responseWriter 
 			"reqID":  p.reqID,
 			"uri": r.RequestURI,
 		}
-		log := GetLogger().WithFields(f)
+		log := getLogger().WithFields(f)
 
-		ctx, cancel := context.WithTimeout(context.Background(), GetConfig().GetDuration(ConfigTimeout))
+		ctx, cancel := context.WithTimeout(context.Background(), getConfig().GetDuration(ConfigTimeout))
 		ctl := &control{
 			reqID: p.reqID,
 			ctx: ctx,
-			config: config,
+			conf: conf,
 			logger: log,
 			cancel: cancel,
 			flowData: make(map[string]interface{}),
@@ -110,14 +108,14 @@ func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) responseWriter 
 		writer = newResponseWriter(w, ctl)
 		ctl.writer = writer
 
-		p.control = ctl
+		p.ctrl = ctl
 	}
-	p.writer = writer
+	p.ctrl.writer = writer
 	return writer
 }
 
-func (p *pipe) Writer() responseWriter {
-	return p.writer
+func (p *pipe) Writer() http.ResponseWriter {
+	return p.ctrl.Writer()
 }
 
 func recoveryFunc(pc Control) {

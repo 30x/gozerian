@@ -42,10 +42,10 @@ var logger Logger
 
 // todo: kinda lame, fix it
 
-func GetLogger() Logger {
+func getLogger() Logger {
 	if logger == nil {
-		GetConfig().GetString(ConfigLogLevel)
-		level, err := logrus.ParseLevel(GetConfig().GetString(ConfigLogLevel))
+		getConfig().GetString(ConfigLogLevel)
+		level, err := logrus.ParseLevel(getConfig().GetString(ConfigLogLevel))
 		if err != nil {
 			level = logrus.InfoLevel
 		}

@@ -11,12 +11,6 @@ type Die func(config interface{}) (Fitting, error)
 var dies map[string]Die
 var diesMutex sync.RWMutex
 
-// RequestHandlerFactory creates a http.HandlerFunc
-type RequestHandlerFactory func(interface{}) http.HandlerFunc
-
-// ResponseHandlerFactory creates a ResponseHandlerFunc
-type ResponseHandlerFactory func(interface{}) ResponseHandlerFunc
-
 // Fitting is a function in a Pipe
 type Fitting interface {
 	RequestHandlerFunc() http.HandlerFunc

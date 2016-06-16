@@ -53,7 +53,7 @@ func (self *ReverseProxyHandler) ServeHTTP(w http.ResponseWriter, req *http.Requ
 	// wrap my writer to avoid that WriteHeader call, since I deal with it elsewhere
 	// also provide a logger that avoids extraneous log messages
 	ch := pipe.Control()
-	ww := &resWriter{pipe.Writer(), ch, w}
+	ww := &resWriter{ch.Writer(), ch, w}
 	log := log.New(&logWriter{ch}, "", 0)
 
 	transport := &targetTransport{http.DefaultTransport, pipe.Control(), ww, req, resHandler}

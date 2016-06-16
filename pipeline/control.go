@@ -31,7 +31,7 @@ type Control interface {
 
 	Log() Logger
 
-	Config() Config
+	Config() config
 
 	FlowData() FlowData
 }
