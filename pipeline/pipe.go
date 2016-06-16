@@ -103,6 +103,7 @@ func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) responseWriter 
 			config: config,
 			logger: log,
 			cancel: cancel,
+			flowData: make(map[string]interface{}),
 		}
 
 		// todo: this is a weird do-si-do circular reference. clean up?
