@@ -34,72 +34,78 @@ type Control interface {
 	Config() config
 
 	FlowData() FlowData
+
+	Writer() http.ResponseWriter
 }
 
 type control struct {
 	ctx          context.Context
 	writer       http.ResponseWriter
 	errorHandler ErrorHandlerFunc
-	config       Config
+	conf         config
 	logger       Logger
 	cancel       context.CancelFunc
 	reqID        string
 	flowData     FlowData
 }
 
-func (pc *control) FlowData() FlowData {
-	return pc.flowData
+func (c *control) FlowData() FlowData {
+	return c.flowData
 }
 
-func (pc *control) RequestID() string {
-	return pc.reqID
+func (c *control) RequestID() string {
+	return c.reqID
 }
 
-func (pc *control) Config() Config {
-	return pc.config
+func (c *control) Config() config {
+	return c.conf
 }
 
-func (pc *control) Log() Logger {
-	return pc.logger
+func (c *control) Log() Logger {
+	return c.logger
 }
 
-func (pc *control) ErrorHandler() ErrorHandlerFunc {
-	if pc.errorHandler == nil {
+func (c *control) ErrorHandler() ErrorHandlerFunc {
+	if c.errorHandler == nil {
 		return DefaultErrorHanderFunc
 	}
-	return pc.errorHandler
+	return c.errorHandler
 }
 
-func (pc *control) SetErrorHandler(eh ErrorHandlerFunc) {
-	pc.Log().Debug("SetErrorHandler", eh)
-	pc.errorHandler = eh
+func (c *control) SetErrorHandler(eh ErrorHandlerFunc) {
+	c.Log().Debug("SetErrorHandler", eh)
+	c.errorHandler = eh
 }
 
-func (pc *control) SendError(r interface{}) error {
-	if pc.Cancelled() {
+func (c *control) SendError(r interface{}) error {
+	if c.Cancelled() {
 		return errors.New("Cancelled response, unable to send")
 	}
-	pc.Log().Debug("SendError: ", r)
+	c.Log().Debug("SendError: ", r)
 	var err error
 	if reflect.TypeOf(r).String() != "error" {
 		err = r.(error)
 	} else {
 		err = fmt.Errorf("%s", r)
 	}
-	return pc.ErrorHandler()(pc.writer, err)
+	return c.ErrorHandler()(c.writer, err)
 }
 
-func (pc *control) Cancel() {
-	pc.Log().Debug("Cancel pipe")
-	if pc.Error() == nil {
-		pc.cancel()
+func (c *control) Cancel() {
+	c.Log().Debug("Cancel pipe")
+	if c.Error() == nil {
+		c.cancel()
 	}
 }
 
-func (pc *control) Error() error {
-	return pc.ctx.Err()
+func (c *control) Error() error {
+	return c.ctx.Err()
 }
 
-func (pc *control) Cancelled() bool {
-	return pc.Error() != nil
+func (c *control) Cancelled() bool {
+	return c.Error() != nil
+}
+
+func (c *control) Writer() http.ResponseWriter {
+	return c.writer
 }
