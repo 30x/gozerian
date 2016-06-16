@@ -5,13 +5,10 @@ import (
 	"sync"
 )
 
-// Dies is a mapping of id to Die
-type Dies map[string]Die
-
 // Die is a factory to create Fittings
 type Die func(config interface{}) (Fitting, error)
 
-var dies Dies
+var dies map[string]Die
 var diesMutex sync.RWMutex
 
 // RequestHandlerFactory creates a http.HandlerFunc
@@ -42,13 +39,13 @@ func RegisterDie(id string, die Die) {
 }
 
 // RegisterDies associates multiple Dies with ids
-func RegisterDies(d Dies) {
+func RegisterDies(m map[string]Die) {
 	diesMutex.Lock()
 	defer diesMutex.Unlock()
 	if dies == nil {
 		dies = make(Dies)
 	}
-	for id, die := range d {
+	for id, die := range m {
 		dies[id] = die
 	}
 }
