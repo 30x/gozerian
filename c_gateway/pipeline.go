@@ -26,7 +26,7 @@ func DefinePipe(configUrl *url.URL) (pipeline.Definition, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !res.Body {
+	if res.Body == nil {
 		return nil, errors.New("Invalid URL, no body")
 	}
 	defer res.Body.Close()
