@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"gopkg.in/yaml.v2"
 	"fmt"
+	"errors"
 )
 
 // Definition of a pipe
@@ -26,6 +27,10 @@ func DefinePipe(r io.Reader) (Definition, error) {
 	err = yaml.Unmarshal(bytes, &pipeConfig)
 	if err != nil {
 		return nil, err
+	}
+
+	if pipeConfig["request"] == nil && pipeConfig["response"] == nil {
+		return nil, errors.New("Illegal Definition: Must have 'request' and/or 'response' keys")
 	}
 
 	// todo: validation of structures

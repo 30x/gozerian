@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"github.com/30x/gozerian/pipeline"
 	"net/url"
+	"errors"
 )
 
 /*
@@ -24,6 +25,9 @@ func DefinePipe(configUrl *url.URL) (pipeline.Definition, error) {
 	res, err := http.Get(configUrl.String())
 	if err != nil {
 		return nil, err
+	}
+	if !res.Body {
+		return nil, errors.New("Invalid URL, no body")
 	}
 	defer res.Body.Close()
 
