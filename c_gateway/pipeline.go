@@ -5,6 +5,8 @@ import (
 	"github.com/30x/gozerian/pipeline"
 	"net/url"
 	"errors"
+	"os"
+	"io"
 )
 
 /*
@@ -20,16 +22,27 @@ Example of expected YAML at URL:
         dumpBody: true      # plugin-specific configuration
  */
 
-func DefinePipe(configUrl *url.URL) (pipeline.Definition, error) {
+func DefinePipe(configURL *url.URL) (pipeline.Definition, error) {
 
-	res, err := http.Get(configUrl.String())
-	if err != nil {
-		return nil, err
-	}
-	if res.Body == nil {
-		return nil, errors.New("Invalid URL, no body")
-	}
-	defer res.Body.Close()
+	var reader io.Reader
 
-	return pipeline.DefinePipe(res.Body)
+	if (configURL.Scheme == "file") {
+		file, err := os.Open(configURL.Path)
+		if err != nil {
+			return nil, err
+		}
+		reader = file
+	} else {
+		res, err := http.Get(configURL.String())
+		if err != nil {
+			return nil, err
+		}
+		if res.Body == nil {
+			return nil, errors.New("Invalid URL, no body")
+		}
+		defer res.Body.Close()
+		reader = res.Body
+	}
+
+	return pipeline.DefinePipe(reader)
 }
