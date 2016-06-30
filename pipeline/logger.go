@@ -55,6 +55,9 @@ func getLogger() Logger {
 			Hooks:     make(logrus.LevelHooks),
 			Level:     level,
 		}
+		if err != nil {
+			logger.Errorln(err.Error())
+		}
 	}
 	return logger
 }
