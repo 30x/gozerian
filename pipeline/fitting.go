@@ -3,6 +3,7 @@ package pipeline
 import (
 	"net/http"
 	"sync"
+	"fmt"
 )
 
 // Die is a factory to create Fittings
@@ -48,7 +49,11 @@ func RegisterDies(m map[string]Die) {
 func NewFitting(dieID string, config interface{}) (FittingWithID, error) {
 	diesMutex.RLock()
 	defer diesMutex.RUnlock()
-	internalDie, err := dies[dieID](config)
+	die := dies[dieID]
+	if die == nil {
+		return nil, fmt.Errorf("Die with id %s not registered", dieID)
+	}
+	internalDie, err := die(config)
 	if err != nil {
 		return nil, err
 	}
