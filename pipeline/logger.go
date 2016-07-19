@@ -5,6 +5,24 @@ import (
 	"os"
 )
 
+var logger Logger
+
+func init() {
+	level, err := logrus.ParseLevel(getConfig().GetString(ConfigLogLevel))
+	if err != nil {
+		level = logrus.InfoLevel
+	}
+	logger = &logrus.Logger{
+		Out:       os.Stderr,
+		Formatter: new(logrus.TextFormatter),
+		Hooks:     make(logrus.LevelHooks),
+		Level:     level,
+	}
+	if err != nil {
+		logger.Errorln(err.Error())
+	}
+}
+
 // Logger represents the logging interface
 type Logger interface {
 	Debugf(format string, args ...interface{})
@@ -36,28 +54,4 @@ type Logger interface {
 
 	WithField(key string, value interface{}) *logrus.Entry
 	WithFields(fields logrus.Fields) *logrus.Entry
-}
-
-var logger Logger
-
-// todo: kinda lame, fix it
-
-func getLogger() Logger {
-	if logger == nil {
-		getConfig().GetString(ConfigLogLevel)
-		level, err := logrus.ParseLevel(getConfig().GetString(ConfigLogLevel))
-		if err != nil {
-			level = logrus.InfoLevel
-		}
-		logger = &logrus.Logger{
-			Out:       os.Stderr,
-			Formatter: new(logrus.TextFormatter),
-			Hooks:     make(logrus.LevelHooks),
-			Level:     level,
-		}
-		if err != nil {
-			logger.Errorln(err.Error())
-		}
-	}
-	return logger
 }

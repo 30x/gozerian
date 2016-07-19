@@ -100,7 +100,7 @@ func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) http.ResponseWr
 			"reqID":  p.reqID,
 			"uri": r.RequestURI,
 		}
-		log := getLogger().WithFields(f)
+		log := logger.WithFields(f)
 
 		ctx, cancel := context.WithTimeout(context.Background(), getConfig().GetDuration(ConfigTimeout))
 		ctl := &control{
