@@ -4,10 +4,6 @@ import (
 	"net/http"
 )
 
-func newResponseWriter(writer http.ResponseWriter, control Control) responseWriter {
-	return &resWriter{writer, control}
-}
-
 type responseWriter interface {
 	http.ResponseWriter
 	ControlHolder

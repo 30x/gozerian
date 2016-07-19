@@ -113,7 +113,7 @@ func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) http.ResponseWr
 		}
 
 		// todo: this is a weird do-si-do circular reference. clean up?
-		writer = newResponseWriter(w, ctl)
+		writer = &resWriter{w, ctl}
 		ctl.writer = writer
 
 		p.ctrl = ctl
