@@ -59,6 +59,10 @@ func (p *pipe) RequestHandlerFunc() http.HandlerFunc {
 			fitting.RequestHandlerFunc()(writer, r)
 			p.ctrl.Log().Debugf("Exit req handler %s", fitting.ID())
 		}
+
+		if p.ctrl.ctx.Err() == context.DeadlineExceeded {
+			p.ctrl.writer.WriteHeader(http.StatusRequestTimeout)
+		}
 	}
 }
 
@@ -76,6 +80,10 @@ func (p *pipe) ResponseHandlerFunc() ResponseHandlerFunc {
 			p.ctrl.Log().Debugf("Enter res handler %s", fitting.ID())
 			fitting.ResponseHandlerFunc()(writer, r, res)
 			p.ctrl.Log().Debugf("Exit res handler %s", fitting.ID())
+		}
+
+		if p.ctrl.ctx.Err() == context.DeadlineExceeded {
+			p.ctrl.writer.WriteHeader(http.StatusRequestTimeout)
 		}
 	}
 }

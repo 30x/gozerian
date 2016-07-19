@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"strconv"
 	"github.com/gorilla/websocket"
+	"time"
 )
 
 // Test framework: http://onsi.github.io/ginkgo/
@@ -85,9 +86,55 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 			Expect(string(body)).To(HavePrefix("dial tcp [::1]:9999: getsockopt: connection refused"))
 		})
 
-		PIt("should timeout request")
+		It("should handle timeout in target", func() {
+
+			// create the target
+			target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				time.Sleep(1 * time.Second)
+				w.Write([]byte("OK"))
+			}))
+			defer target.Close()
+
+			// create the gateway
+			gateway := newGateway(target.URL, noRequestHandlers, noResponseHandlers)
+			defer gateway.Close()
+
+			// send the request
+			res, _ := http.Get(gateway.URL)
+			defer res.Body.Close()
+
+			body, _ := ioutil.ReadAll(res.Body)
+			Expect(string(body)).To(Equal(""))
+			Expect(res.StatusCode).To(Equal(http.StatusRequestTimeout))
+		})
 
 		Context("request handler", func() {
+
+			It("should handle timeout", func() {
+
+				// create the target
+				target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					Fail("Should not reach")
+				}))
+				defer target.Close()
+
+				// create the gateway
+				requestHandlers := []http.HandlerFunc{func(w http.ResponseWriter, r *http.Request) {
+					time.Sleep(1 * time.Second)
+				}, func(w http.ResponseWriter, r *http.Request) {
+					Fail("Should not reach")
+				}}
+				gateway := newGateway(target.URL, requestHandlers, noResponseHandlers)
+				defer gateway.Close()
+
+				// send the request
+				res, _ := http.Get(gateway.URL)
+				defer res.Body.Close()
+
+				body, _ := ioutil.ReadAll(res.Body)
+				Expect(string(body)).To(Equal(""))
+				Expect(res.StatusCode).To(Equal(http.StatusRequestTimeout))
+			})
 
 			It("should be able to modify request URL", func() {
 
@@ -387,6 +434,32 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 		})
 
 		Context("response handler", func() {
+
+			It("should handle timeout", func() {
+
+				// create the target
+				target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Write([]byte("OK"))
+				}))
+				defer target.Close()
+
+				// create the gateway
+				responseHandlers := []ResponseHandlerFunc{func(w http.ResponseWriter, r *http.Request, res *http.Response) {
+					time.Sleep(1 * time.Second)
+				}, func(w http.ResponseWriter, r *http.Request, res *http.Response) {
+					Fail("Should not reach")
+				}}
+				gateway := newGateway(target.URL, noRequestHandlers, responseHandlers)
+				defer gateway.Close()
+
+				// send the request
+				res, _ := http.Get(gateway.URL)
+				defer res.Body.Close()
+
+				body, _ := ioutil.ReadAll(res.Body)
+				Expect(string(body)).To(Equal(""))
+				Expect(res.StatusCode).To(Equal(http.StatusRequestTimeout))
+			})
 
 			It("should be able to modify response status", func() {
 				// create the target

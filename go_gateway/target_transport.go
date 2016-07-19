@@ -30,12 +30,11 @@ func (tt *targetTransport) RoundTrip(req *http.Request) (res *http.Response, err
 	res, err = tt.RoundTripper.RoundTrip(req)
 	if err != nil {
 		tt.control.SendError(err)
+		return res, err
 	}
 
 	// run response handlers
-	if !tt.control.Cancelled() {
-		tt.resHandler(tt.writer, tt.origReq, res)
-	}
+	tt.resHandler(tt.writer, tt.origReq, res)
 
 	return res, tt.control.Error()
 }
@@ -90,8 +89,6 @@ func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Res
 	go copyData(targetConn, clientRW, done, timer, timeout)
 
 	err = <-done
-
-	// todo: add test for timeout
 
 	return nil, err
 }

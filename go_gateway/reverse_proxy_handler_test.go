@@ -7,11 +7,15 @@ import (
 	"net/http/httptest"
 	"net/http"
 	"net/url"
+	"os"
 )
 
 // Test framework: http://onsi.github.io/ginkgo/
 
 func init() {
+	// set low timeout for testing
+	os.Setenv("GOZ_TIMEOUT", "1s")
+
 	RegisterDie("dump", test_util.CreateDumpFitting)
 }
 

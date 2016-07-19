@@ -17,6 +17,9 @@ func init() {
 	v := viper.New()
 	conf = v
 
+	v.SetEnvPrefix("goz") // eg. env var "GOZ_TIMEOUT" will bind to config "timeout"
+	v.AutomaticEnv()
+
 	v.SetDefault(ConfigTimeout, "1m") // 1 minute
 	v.SetDefault(ConfigLogLevel, "debug")
 }
