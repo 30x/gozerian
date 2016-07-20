@@ -14,6 +14,31 @@ import (
 
 var _ = Describe("Definition", func() {
 
+	It("should fail on illegal key", func() {
+		// define the pipe via YAML (loaded from URI)
+		pipeYaml := `requ:`
+		yamlReader := strings.NewReader(pipeYaml)
+
+		// define a pipe
+		_, err := DefinePipe(yamlReader)
+		Expect(err).To(HaveOccurred())
+
+	})
+
+	It("should fail if unknown fitting id", func() {
+		// define the pipe via YAML (loaded from URI)
+		pipeYaml := `
+response:
+  - unknown_fitting:
+`
+		yamlReader := strings.NewReader(pipeYaml)
+
+		// define a pipe
+		_, err := DefinePipe(yamlReader)
+		Expect(err).To(HaveOccurred())
+
+	})
+
 	It("should load from a simple yaml struct", func() {
 
 		// write a die & fitting (in another module)

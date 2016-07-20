@@ -5,8 +5,13 @@ import (
 	"io/ioutil"
 	"gopkg.in/yaml.v2"
 	"fmt"
-	"errors"
 )
+
+type PipeDef struct {
+	Request []FittingDef `yaml:"request"`
+	Response []FittingDef `yaml:"response"`
+}
+type FittingDef map[string]interface{}
 
 // Definition of a pipe
 type Definition interface {
@@ -20,8 +25,16 @@ func DefinePipe(r io.Reader) (Definition, error) {
 		return nil, err
 	}
 
-	type FittingDef map[string]interface{}
-	type PipeDef map[string][]FittingDef
+	var checkKeys map[string]interface{}
+	err = yaml.Unmarshal(bytes, &checkKeys)
+	if err != nil {
+		return nil, err
+	}
+	for k := range checkKeys {
+		if k != "request" && k != "response" {
+			return nil, fmt.Errorf("Bad PipeDef: Valid keys: 'request', 'response'.", k)
+		}
+	}
 
 	var pipeConfig PipeDef
 	err = yaml.Unmarshal(bytes, &pipeConfig)
@@ -29,48 +42,37 @@ func DefinePipe(r io.Reader) (Definition, error) {
 		return nil, err
 	}
 
-	if pipeConfig["request"] == nil && pipeConfig["response"] == nil {
-		return nil, errors.New("Illegal Definition: Must have 'request' and/or 'response' keys")
-	}
+	return DefinePipeDirectly(pipeConfig)
+}
 
-	// todo: validation of structures
+func DefinePipeDirectly(pipeConfig PipeDef) (Definition, error) {
 
 	var reqFittings []FittingWithID
-	reqDefs := pipeConfig["request"]
-	if reqDefs != nil {
-		for _, fittingDef := range reqDefs {
-			if len(fittingDef) > 1 {
-				return nil, fmt.Errorf("bad structure")
+	reqDefs := pipeConfig.Request
+	for _, fittingDef := range reqDefs {
+		for id, config := range fittingDef{
+			fitting, err := NewFitting(id, config)
+			if err != nil {
+				return nil, err
 			}
-			for id, config := range fittingDef{
-				fitting, err := NewFitting(id, config)
-				if err != nil {
-					return nil, err
-				}
-				handler := fitting.RequestHandlerFunc()
-				if handler != nil {
-					reqFittings = append(reqFittings, fitting)
-				}
+			handler := fitting.RequestHandlerFunc()
+			if handler != nil {
+				reqFittings = append(reqFittings, fitting)
 			}
 		}
 	}
 
 	var resFittings []FittingWithID
-	resDefs := pipeConfig["response"]
-	if resDefs != nil {
-		for _, fittingDef := range resDefs {
-			if len(fittingDef) > 1 {
-				return nil, fmt.Errorf("bad structure")
+	resDefs := pipeConfig.Response
+	for _, fittingDef := range resDefs {
+		for id, config := range fittingDef{
+			fitting, err := NewFitting(id, config)
+			if err != nil {
+				return nil, err
 			}
-			for id, config := range fittingDef{
-				fitting, err := NewFitting(id, config)
-				if err != nil {
-					return nil, err
-				}
-				handler := fitting.ResponseHandlerFunc()
-				if handler != nil {
-					resFittings = append(resFittings, fitting)
-				}
+			handler := fitting.ResponseHandlerFunc()
+			if handler != nil {
+				resFittings = append(resFittings, fitting)
 			}
 		}
 	}
