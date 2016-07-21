@@ -18,9 +18,17 @@ import (
 	"strconv"
 	"github.com/gorilla/websocket"
 	"time"
+	"os"
 )
 
 // Test framework: http://onsi.github.io/ginkgo/
+
+func init() {
+	// set low timeout for testing
+	os.Setenv("GOZ_TIMEOUT", "1s")
+
+	RegisterDie("dump", CreateDumpFitting)
+}
 
 var noRequestHandlers = []http.HandlerFunc{}
 var noResponseHandlers = []ResponseHandlerFunc{}

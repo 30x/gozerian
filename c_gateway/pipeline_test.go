@@ -7,17 +7,9 @@ import (
 	"net/url"
 	"github.com/30x/gozerian/go_gateway"
 	"net/http"
-	"os"
 )
 
 // Test framework: http://onsi.github.io/ginkgo/
-
-func init() {
-	// set low timeout for testing
-	os.Setenv("GOZ_TIMEOUT", "1s")
-
-	RegisterDie("dump", test_util.CreateDumpFitting)
-}
 
 func makeGateway(targetURL string, reqHands []http.HandlerFunc, resHands []ResponseHandlerFunc) *httptest.Server {
 
