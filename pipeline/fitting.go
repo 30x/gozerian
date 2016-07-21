@@ -53,6 +53,7 @@ func NewFitting(dieID string, config interface{}) (FittingWithID, error) {
 	if die == nil {
 		return nil, fmt.Errorf("Die with id %s not registered", dieID)
 	}
+	logger.Debugf("creating die %s with config: %v", dieID, config)
 	internalDie, err := die(config)
 	if err != nil {
 		return nil, err

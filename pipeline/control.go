@@ -73,7 +73,7 @@ func (c *control) ErrorHandler() ErrorHandlerFunc {
 }
 
 func (c *control) SetErrorHandler(eh ErrorHandlerFunc) {
-	c.Log().Debug("SetErrorHandler", eh)
+	c.Log().Debug("set error handler", eh)
 	c.errorHandler = eh
 }
 
@@ -81,7 +81,7 @@ func (c *control) SendError(r interface{}) error {
 	if c.Cancelled() {
 		return errors.New("Cancelled response, unable to send")
 	}
-	c.Log().Debug("SendError: ", r)
+	c.Log().Debug("send error: ", r)
 	var err error
 	if reflect.TypeOf(r).String() != "error" {
 		err = r.(error)
@@ -92,7 +92,7 @@ func (c *control) SendError(r interface{}) error {
 }
 
 func (c *control) Cancel() {
-	c.Log().Debug("Cancel pipe")
+	c.Log().Debug("cancel pipe")
 	if c.Error() == nil {
 		c.cancel()
 	}

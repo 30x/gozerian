@@ -55,9 +55,9 @@ func (p *pipe) RequestHandlerFunc() http.HandlerFunc {
 			if p.ctrl.Cancelled() {
 				break
 			}
-			p.ctrl.Log().Debugf("Enter req handler %s", fitting.ID())
+			p.ctrl.Log().Debugf("enter req handler %s", fitting.ID())
 			fitting.RequestHandlerFunc()(writer, r)
-			p.ctrl.Log().Debugf("Exit req handler %s", fitting.ID())
+			p.ctrl.Log().Debugf("exit req handler %s", fitting.ID())
 		}
 
 		if p.ctrl.ctx.Err() == context.DeadlineExceeded {
@@ -77,9 +77,9 @@ func (p *pipe) ResponseHandlerFunc() ResponseHandlerFunc {
 			if p.ctrl.Cancelled() {
 				break
 			}
-			p.ctrl.Log().Debugf("Enter res handler %s", fitting.ID())
+			p.ctrl.Log().Debugf("enter res handler %s", fitting.ID())
 			fitting.ResponseHandlerFunc()(writer, r, res)
-			p.ctrl.Log().Debugf("Exit res handler %s", fitting.ID())
+			p.ctrl.Log().Debugf("exit res handler %s", fitting.ID())
 		}
 
 		if p.ctrl.ctx.Err() == context.DeadlineExceeded {
