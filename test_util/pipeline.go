@@ -175,7 +175,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				// create the original target
 				origTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					w.Write([]byte("OK"))
+					Fail("Should not reach")
 				}))
 				defer origTarget.Close()
 
