@@ -5,9 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"sync/atomic"
-
+	"context"
 	"github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 // Pipe runs a series of request and response handlers - one created per request

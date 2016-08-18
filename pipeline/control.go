@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
-
-	"golang.org/x/net/context"
+	"context"
 )
 
 // ControlHolder holds a Control
