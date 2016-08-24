@@ -1,21 +1,21 @@
 package pipeline
 
 import (
+	"fmt"
+	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
-	"gopkg.in/yaml.v2"
-	"fmt"
 )
 
 type PipeDef struct {
-	Request []FittingDef `yaml:"request"`
+	Request  []FittingDef `yaml:"request"`
 	Response []FittingDef `yaml:"response"`
 }
 type FittingDef map[string]interface{}
 
 // Definition of a pipe
 type Definition interface {
-	CreatePipe(reqID string) Pipe
+	CreatePipe() Pipe
 }
 
 // DefinePipeFromReader returns a Pipe Definition as defined in the yaml Reader
@@ -32,7 +32,7 @@ func DefinePipe(r io.Reader) (Definition, error) {
 	}
 	for k := range checkKeys {
 		if k != "request" && k != "response" {
-			return nil, fmt.Errorf("Bad PipeDef: Valid keys: 'request', 'response'.", k)
+			return nil, fmt.Errorf("Bad PipeDef key: %s. Valid keys: 'request', 'response'.", k)
 		}
 	}
 
@@ -50,7 +50,7 @@ func DefinePipeDirectly(pipeConfig PipeDef) (Definition, error) {
 	var reqFittings []FittingWithID
 	reqDefs := pipeConfig.Request
 	for _, fittingDef := range reqDefs {
-		for id, config := range fittingDef{
+		for id, config := range fittingDef {
 			fitting, err := NewFitting(id, config)
 			if err != nil {
 				return nil, err
@@ -65,7 +65,7 @@ func DefinePipeDirectly(pipeConfig PipeDef) (Definition, error) {
 	var resFittings []FittingWithID
 	resDefs := pipeConfig.Response
 	for _, fittingDef := range resDefs {
-		for id, config := range fittingDef{
+		for id, config := range fittingDef {
 			fitting, err := NewFitting(id, config)
 			if err != nil {
 				return nil, err
@@ -90,7 +90,6 @@ type definition struct {
 	resFittings []FittingWithID
 }
 
-// if reqId is nil, will create and use an internal id
-func (d *definition) CreatePipe(reqID string) Pipe {
-	return newPipe(reqID, d.reqFittings, d.resFittings)
+func (d *definition) CreatePipe() Pipe {
+	return newPipe(d.reqFittings, d.resFittings)
 }

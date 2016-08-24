@@ -1,66 +1,89 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"net/http"
 	"strconv"
 	"sync/atomic"
-	"context"
-	"github.com/Sirupsen/logrus"
 )
 
-// Pipe runs a series of request and response handlers - one created per request
+// Pipe runs a series of request and response handlers
 type Pipe interface {
-	ControlHolder
+	PrepareRequest(reqID string, req *http.Request) *http.Request
+
+	// Be sure to call this with a prepared http.Request!
 	RequestHandlerFunc() http.HandlerFunc
+
+	// Be sure to call this with a prepared http.Request!
 	ResponseHandlerFunc() ResponseHandlerFunc
 }
 
 var reqCounter int64
 
-func newPipe(reqID string, reqFittings []FittingWithID, resFittings []FittingWithID) Pipe {
-
-	// provide a default (transient) implementation of an ID
-	if reqID == "" {
-		reqID = string(strconv.FormatInt(atomic.AddInt64(&reqCounter, 1), 10))
-	}
+func newPipe(reqFittings []FittingWithID, resFittings []FittingWithID) Pipe {
 
 	return &pipe{
-		reqID:    reqID,
 		reqFittings: reqFittings,
 		resFittings: resFittings,
 	}
 }
 
 type pipe struct {
-	reqID       string
 	reqFittings []FittingWithID
 	resFittings []FittingWithID
-	ctrl        *control
 }
 
-func (p *pipe) Control() Control {
-	return p.ctrl
+func (p *pipe) PrepareRequest(reqID string, r *http.Request) *http.Request {
+
+	if reqID == "" {
+		reqID = string(strconv.FormatInt(atomic.AddInt64(&reqCounter, 1), 10))
+	}
+
+	f := logrus.Fields{
+		"reqID": reqID,
+		"uri":   r.RequestURI,
+	}
+	log := logger.WithFields(f)
+
+	ctx, cancel := context.WithTimeout(r.Context(), getConfig().GetDuration(ConfigTimeout))
+	ctl := &control{
+		reqID:    reqID,
+		ctx:      ctx,
+		conf:     conf,
+		logger:   log,
+		cancel:   cancel,
+		flowData: make(map[string]interface{}),
+	}
+	ctx = NewControlContext(ctx, ctl)
+
+	return r.WithContext(ctx)
 }
 
 func (p *pipe) RequestHandlerFunc() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		writer := p.setWriter(w, r)
-		defer recoveryFunc(p.ctrl)
+		control := ControlFromContext(r.Context())
+		if control == nil {
+			panic("You must run PrepareRequest() on the request!")
+		}
+		w = &resWriter{w, control}
+		defer recoveryFunc(w, control)
+
 
 		for _, fitting := range p.reqFittings {
-			if p.ctrl.Cancelled() {
+			if control.Cancelled() {
 				break
 			}
-			p.ctrl.Log().Debugf("enter req handler %s", fitting.ID())
-			fitting.RequestHandlerFunc()(writer, r)
-			p.ctrl.Log().Debugf("exit req handler %s", fitting.ID())
+			control.Log().Debugf("enter req handler %s", fitting.ID())
+			fitting.RequestHandlerFunc()(w, r)
+			control.Log().Debugf("exit req handler %s", fitting.ID())
 		}
 
-		if p.ctrl.ctx.Err() == context.DeadlineExceeded {
-			p.ctrl.writer.WriteHeader(http.StatusRequestTimeout)
+		if r.Context().Err() == context.DeadlineExceeded {
+			w.WriteHeader(http.StatusRequestTimeout)
 		}
 	}
 }
@@ -69,66 +92,33 @@ func (p *pipe) ResponseHandlerFunc() ResponseHandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request, res *http.Response) {
 
-		writer := p.setWriter(w, r)
-		defer recoveryFunc(p.ctrl)
+		control := ControlFromContext(r.Context())
+		if control == nil {
+			panic("You must run PrepareRequest() on the request!")
+		}
+		w = &resWriter{w, control}
+		defer recoveryFunc(w, control)
+
 
 		for _, fitting := range p.resFittings {
-			if p.ctrl.Cancelled() {
+			if control.Cancelled() {
 				break
 			}
-			p.ctrl.Log().Debugf("enter res handler %s", fitting.ID())
-			fitting.ResponseHandlerFunc()(writer, r, res)
-			p.ctrl.Log().Debugf("exit res handler %s", fitting.ID())
+			control.Log().Debugf("enter res handler %s", fitting.ID())
+			fitting.ResponseHandlerFunc()(w, r, res)
+			control.Log().Debugf("exit res handler %s", fitting.ID())
 		}
 
-		if p.ctrl.ctx.Err() == context.DeadlineExceeded {
-			p.ctrl.writer.WriteHeader(http.StatusRequestTimeout)
+		if r.Context().Err() == context.DeadlineExceeded {
+			w.WriteHeader(http.StatusRequestTimeout)
 		}
 	}
 }
 
-func (p *pipe) setWriter(w http.ResponseWriter, r *http.Request) http.ResponseWriter {
-
-	if p.ctrl != nil && p.ctrl.Writer() != nil {
-		return p.ctrl.Writer()
-	}
-
-	writer, ok := w.(responseWriter)
-	if !ok {
-		f := logrus.Fields{
-			"reqID":  p.reqID,
-			"uri": r.RequestURI,
-		}
-		log := logger.WithFields(f)
-
-		ctx, cancel := context.WithTimeout(context.Background(), getConfig().GetDuration(ConfigTimeout))
-		ctl := &control{
-			reqID: p.reqID,
-			ctx: ctx,
-			conf: conf,
-			logger: log,
-			cancel: cancel,
-			flowData: make(map[string]interface{}),
-		}
-
-		// todo: this is a weird do-si-do circular reference. clean up?
-		writer = &resWriter{w, ctl}
-		ctl.writer = writer
-
-		p.ctrl = ctl
-	}
-	p.ctrl.writer = writer
-	return writer
-}
-
-func (p *pipe) Writer() http.ResponseWriter {
-	return p.ctrl.Writer()
-}
-
-func recoveryFunc(pc Control) {
+func recoveryFunc(w http.ResponseWriter, pc Control) {
 	if r := recover(); r != nil {
 		err := fmt.Errorf("%s", r)
 		pc.Log().Warn("Panic Recovery Error: ", err)
-		pc.SendError(err)
+		pc.HandleError(w, err)
 	}
 }

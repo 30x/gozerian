@@ -1,17 +1,11 @@
 package pipeline
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
-	"reflect"
-	"context"
 )
-
-// ControlHolder holds a Control
-type ControlHolder interface {
-	Control() Control
-}
 
 // ExtraData is just an open map for storing stuff
 type FlowData map[string]interface{}
@@ -22,9 +16,9 @@ type Control interface {
 
 	SetErrorHandler(eh ErrorHandlerFunc)
 	ErrorHandler() ErrorHandlerFunc
-	SendError(err interface{}) error
-	Error() error
+	HandleError(w http.ResponseWriter, err interface{}) error
 
+	Error() error
 	Cancel()
 	Cancelled() bool
 
@@ -33,13 +27,18 @@ type Control interface {
 	Config() config
 
 	FlowData() FlowData
+}
 
-	Writer() http.ResponseWriter
+func NewControlContext(ctx context.Context, ctl Control) context.Context {
+	return context.WithValue(ctx, "control", ctl)
+}
+
+func ControlFromContext(ctx context.Context) Control {
+	return ctx.Value("control").(Control)
 }
 
 type control struct {
 	ctx          context.Context
-	writer       http.ResponseWriter
 	errorHandler ErrorHandlerFunc
 	conf         config
 	logger       Logger
@@ -76,18 +75,17 @@ func (c *control) SetErrorHandler(eh ErrorHandlerFunc) {
 	c.errorHandler = eh
 }
 
-func (c *control) SendError(r interface{}) error {
+func (c *control) HandleError(w http.ResponseWriter, r interface{}) error {
 	if c.Cancelled() {
 		return errors.New("Cancelled response, unable to send")
 	}
 	c.Log().Debug("send error: ", r)
 	var err error
-	if reflect.TypeOf(r).String() != "error" {
-		err = r.(error)
-	} else {
+	err, ok := r.(error)
+	if !ok {
 		err = fmt.Errorf("%s", r)
 	}
-	return c.ErrorHandler()(c.writer, err)
+	return c.ErrorHandler()(w, err)
 }
 
 func (c *control) Cancel() {
@@ -103,8 +101,4 @@ func (c *control) Error() error {
 
 func (c *control) Cancelled() bool {
 	return c.Error() != nil
-}
-
-func (c *control) Writer() http.ResponseWriter {
-	return c.writer
 }

@@ -17,7 +17,7 @@ In addition to the request and response pipes, a pipe maintains a context and co
 by type asserting the passed http.Writer to a pipeline.ControlHolder and calling its Control() function like so:
 
 		return func(w http.ResponseWriter, r *http.Request) {
-			control := w.(pipeline.ControlHolder).Control()
+			control := pipeline.ControlFromContext(r.Context())
 
 Once you have a pipeline.Control, your fitting now has a variety of options available to it including logging,
 error handling, flow variables, etc. See the pipeline.Control documentation for more information.

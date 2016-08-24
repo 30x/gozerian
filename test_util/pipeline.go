@@ -1,24 +1,24 @@
 package test_util
 
 import (
-	. "github.com/30x/gozerian/pipeline"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"net/http/httptest"
-	"net/http"
-	"fmt"
-	"io/ioutil"
-	"strings"
-	"io"
+	"bufio"
 	"bytes"
 	"errors"
-	"net"
-	"bufio"
-	"net/url"
-	"strconv"
+	"fmt"
+	. "github.com/30x/gozerian/pipeline"
 	"github.com/gorilla/websocket"
-	"time"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"io"
+	"io/ioutil"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // Test framework: http://onsi.github.io/ginkgo/
@@ -89,9 +89,9 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 			defer res.Body.Close()
 
 			// check the received response
-			body, _ := ioutil.ReadAll(res.Body)
-			Expect(res.StatusCode).To(Equal(500))
-			Expect(string(body)).To(HavePrefix("dial tcp [::1]:9999: getsockopt: connection refused"))
+			Expect(res.StatusCode).To(Equal(http.StatusBadGateway))
+			//body, _ := ioutil.ReadAll(res.Body)
+			//Expect(string(body)).To(HavePrefix("dial tcp [::1]:9999: getsockopt: connection refused"))
 		})
 
 		It("should handle timeout in target", func() {
@@ -113,7 +113,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 			body, _ := ioutil.ReadAll(res.Body)
 			Expect(string(body)).To(Equal(""))
-			Expect(res.StatusCode).To(Equal(http.StatusRequestTimeout))
+			Expect(res.StatusCode).To(Equal(http.StatusBadGateway))
 		})
 
 		Context("request handler", func() {
@@ -232,19 +232,19 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 			It("should be able to modify request headers", func() {
 
 				clientHeaders := http.Header{
-					"Foo": {"Bar"},
-					"Add": {"Bar"},
+					"Foo":    {"Bar"},
+					"Add":    {"Bar"},
 					"Change": {"Me"},
-					"Del": {"Me"},
+					"Del":    {"Me"},
 				}
 
 				// create the target
 				target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					// check the received request
-					Expect(r.Header.Get("Foo")).To(Equal("Bar")) // unchanged
-					Expect(r.Header.Get("Del")).To(Equal("")) // deleted
-					Expect(r.Header.Get("New")).To(Equal("Test")) // new
-					Expect(r.Header.Get("Change")).To(Equal("Test")) // changed
+					Expect(r.Header.Get("Foo")).To(Equal("Bar"))               // unchanged
+					Expect(r.Header.Get("Del")).To(Equal(""))                  // deleted
+					Expect(r.Header.Get("New")).To(Equal("Test"))              // new
+					Expect(r.Header.Get("Change")).To(Equal("Test"))           // changed
 					Expect(r.Header["Add"]).To(Equal([]string{"Bar", "Test"})) // added
 
 					w.Write([]byte("OK"))
@@ -253,10 +253,10 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				// create the gateway
 				requestHandlers := []http.HandlerFunc{func(w http.ResponseWriter, r *http.Request) {
-					r.Header.Del("Del") // delete existing
-					r.Header.Set("New", "Test") // add new
+					r.Header.Del("Del")            // delete existing
+					r.Header.Set("New", "Test")    // add new
 					r.Header.Set("Change", "Test") // change existing
-					r.Header.Add("Add", "Test") // add new
+					r.Header.Add("Add", "Test")    // add new
 				}}
 				gateway := newGateway(target.URL, requestHandlers, noResponseHandlers)
 				defer gateway.Close()
@@ -352,7 +352,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				// create the gateway
 				requestHandlers := []http.HandlerFunc{func(w http.ResponseWriter, r *http.Request) {
-					w.(ControlHolder).Control().Cancel()
+					ControlFromContext(r.Context()).Cancel()
 				}}
 				gateway := newGateway(target.URL, requestHandlers, noResponseHandlers)
 				defer gateway.Close()
@@ -375,7 +375,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				// create the gateway
 				requestHandlers := []http.HandlerFunc{func(w http.ResponseWriter, r *http.Request) {
-					w.(ControlHolder).Control().SendError(errors.New(errMsg))
+					ControlFromContext(r.Context()).HandleError(w, errors.New(errMsg))
 				}}
 				gateway := newGateway(target.URL, requestHandlers, noResponseHandlers)
 				defer gateway.Close()
@@ -424,11 +424,11 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 				// create the gateway
 				requestHandlers := []http.HandlerFunc{
 					func(w http.ResponseWriter, r *http.Request) {
-						flow := w.(ControlHolder).Control().FlowData()
+						flow := ControlFromContext(r.Context()).FlowData()
 						flow["XXX"] = "YYY"
 					},
 					func(w http.ResponseWriter, r *http.Request) {
-						flow := w.(ControlHolder).Control().FlowData()
+						flow := ControlFromContext(r.Context()).FlowData()
 						Expect(flow["XXX"]).To(Equal("YYY"))
 					},
 				}
@@ -494,10 +494,10 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 			It("should be able to modify response headers", func() {
 
 				responseHeaders := http.Header{
-					"Foo": {"Bar"},
-					"Add": {"Bar"},
+					"Foo":    {"Bar"},
+					"Add":    {"Bar"},
 					"Change": {"Me"},
-					"Del": {"Me"},
+					"Del":    {"Me"},
 				}
 
 				// create the target
@@ -515,10 +515,10 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 				// create the gateway
 				responseHandlers := []ResponseHandlerFunc{func(w http.ResponseWriter, r *http.Request, res *http.Response) {
 					// rewrite headers
-					res.Header.Del("Del") // delete existing
-					res.Header.Set("New", "Test") // add new
+					res.Header.Del("Del")            // delete existing
+					res.Header.Set("New", "Test")    // add new
 					res.Header.Set("Change", "Test") // change existing
-					res.Header.Add("Add", "Test") // add new
+					res.Header.Add("Add", "Test")    // add new
 				}}
 				gateway := newGateway(target.URL, noRequestHandlers, responseHandlers)
 				defer gateway.Close()
@@ -528,10 +528,10 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 				defer res.Body.Close()
 
 				// check the response
-				Expect(res.Header.Get("Foo")).To(Equal("Bar")) // unchanged
-				Expect(res.Header.Get("Del")).To(Equal("")) // deleted
-				Expect(res.Header.Get("New")).To(Equal("Test")) // new
-				Expect(res.Header.Get("Change")).To(Equal("Test")) // changed
+				Expect(res.Header.Get("Foo")).To(Equal("Bar"))               // unchanged
+				Expect(res.Header.Get("Del")).To(Equal(""))                  // deleted
+				Expect(res.Header.Get("New")).To(Equal("Test"))              // new
+				Expect(res.Header.Get("Change")).To(Equal("Test"))           // changed
 				Expect(res.Header["Add"]).To(Equal([]string{"Bar", "Test"})) // added
 
 				body, _ := ioutil.ReadAll(res.Body)
@@ -612,7 +612,7 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				// create the gateway
 				responseHandlers := []ResponseHandlerFunc{func(w http.ResponseWriter, r *http.Request, res *http.Response) {
-					w.(ControlHolder).Control().SendError(errors.New(errMsg))
+					ControlFromContext(r.Context()).HandleError(w, errors.New(errMsg))
 				}}
 				gateway := newGateway(target.URL, noRequestHandlers, responseHandlers)
 				defer gateway.Close()
@@ -661,11 +661,11 @@ func TestPipelineAgainst(newGateway NewGatewayFunc) bool {
 
 				// create the gateway
 				requestHandlers := []http.HandlerFunc{func(w http.ResponseWriter, r *http.Request) {
-						flow := w.(ControlHolder).Control().FlowData()
-						flow["XXX"] = "YYY"
+					flow := ControlFromContext(r.Context()).FlowData()
+					flow["XXX"] = "YYY"
 				}}
 				responseHandlers := []ResponseHandlerFunc{func(w http.ResponseWriter, r *http.Request, res *http.Response) {
-					flow := w.(ControlHolder).Control().FlowData()
+					flow := ControlFromContext(r.Context()).FlowData()
 					Expect(flow["XXX"]).To(Equal("YYY"))
 				}}
 				gateway := newGateway(target.URL, requestHandlers, responseHandlers)
@@ -779,7 +779,7 @@ func TestPipelineSocketUpgradesAgainst(newGateway NewGatewayFunc) bool {
 							return str
 						}
 
-						out:
+					out:
 						for {
 							received := receive()
 							switch received {
@@ -801,8 +801,7 @@ func TestPipelineSocketUpgradesAgainst(newGateway NewGatewayFunc) bool {
 				// create the gateway
 				gateway := newGateway(target.URL, noRequestHandlers, noResponseHandlers)
 				defer gateway.Close()
-				targetUrl, _:= url.Parse(gateway.URL)
-
+				targetUrl, _ := url.Parse(gateway.URL)
 
 				// communicate with server
 				tcpConn, _ := net.Dial("tcp", targetUrl.Host)
@@ -850,7 +849,8 @@ func TestPipelineSocketUpgradesAgainst(newGateway NewGatewayFunc) bool {
 
 			//PIt("should be able to filter requests and responses - maybe")
 		})
-	})}
+	})
+}
 
 type testFilter struct {
 	io.ReadCloser

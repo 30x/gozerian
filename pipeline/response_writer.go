@@ -4,11 +4,9 @@ import (
 	"net/http"
 )
 
-type responseWriter interface {
-	http.ResponseWriter
-	ControlHolder
-}
-
+/*
+This wrapper is used to ensure that when the response is written to, the pipeline gets canceled.
+ */
 type resWriter struct {
 	writer  http.ResponseWriter
 	control Control
@@ -20,7 +18,6 @@ func (w *resWriter) Header() http.Header {
 
 func (w *resWriter) Write(bytes []byte) (int, error) {
 	w.control.Log().Debugf("write: %s", string(bytes))
-	w.control.Cancel()
 	return w.writer.Write(bytes)
 }
 

@@ -1,20 +1,21 @@
 package go_gateway
 
 import (
-	"net/http"
-	"net"
 	"bufio"
 	"errors"
-	"time"
-	"io"
 	"github.com/30x/gozerian/pipeline"
+	"io"
+	"log"
+	"net"
+	"net/http"
+	"time"
 )
 
 type targetTransport struct {
 	http.RoundTripper
 	control    pipeline.Control
 	writer     http.ResponseWriter
-	origReq	   *http.Request
+	origReq    *http.Request
 	resHandler pipeline.ResponseHandlerFunc
 }
 
@@ -28,8 +29,10 @@ func (tt *targetTransport) RoundTrip(req *http.Request) (res *http.Response, err
 
 	// call target
 	res, err = tt.RoundTripper.RoundTrip(req)
+
 	if err != nil {
-		tt.control.SendError(err)
+		tt.control.Cancel()
+		tt.control.Log().Debug(err)
 		return res, err
 	}
 
@@ -39,10 +42,10 @@ func (tt *targetTransport) RoundTrip(req *http.Request) (res *http.Response, err
 	return res, tt.control.Error()
 }
 
-func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Response, err error) {
+func (tt *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Response, err error) {
 
-	req.Header.Set("Connection", self.origReq.Header.Get("Connection"))
-	req.Header.Set("Upgrade", self.origReq.Header.Get("Upgrade"))
+	req.Header.Set("Connection", tt.origReq.Header.Get("Connection"))
+	req.Header.Set("Upgrade", tt.origReq.Header.Get("Upgrade"))
 
 	targetConn, err := net.Dial("tcp", req.URL.Host)
 	if err != nil {
@@ -64,10 +67,9 @@ func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Res
 	}
 
 	// Run Response Handlers
-	self.resHandler(self.writer, self.origReq, res)
+	tt.resHandler(tt.writer, tt.origReq, res)
 
-	//log.Print("hijacking")
-	con, clientRW, err := self.writer.(http.Hijacker).Hijack()
+	con, clientRW, err := tt.writer.(http.Hijacker).Hijack()
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +82,7 @@ func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Res
 
 	// set timeout timer
 	// todo: can we get the elapsed time left instead?
-	timeout := self.control.Config().GetDuration(pipeline.ConfigTimeout)
+	timeout := tt.control.Config().GetDuration(pipeline.ConfigTimeout)
 	timer := time.AfterFunc(timeout, func() { close(done) })
 
 	// todo: pipe data through upgraded stream handlers!
@@ -94,6 +96,13 @@ func (self *targetTransport) upgradedRoundTrip(req *http.Request) (res *http.Res
 }
 
 func copyData(writer io.Writer, reader io.Reader, done chan error, timer *time.Timer, timeout time.Duration) {
+
+	// avoid "send on closed channel" panic
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("recovered panic: %v", r)
+		}
+	}()
 
 	buf := make([]byte, 100, 100)
 	c := time.Tick(time.Millisecond)
